@@ -1,6 +1,35 @@
-# NTAG 424 DNA NFC 보안 인증 서버 (Orca NFC Auth)
+# NTAG 424 DNA NFC 보안 인증 시스템 (NFC Auth)
 
-NXP **NTAG 424 DNA** 태그의 **SDM / SUN (Secure Unique NFC Message)** 프로토콜을 기반으로, 스마트폰 NFC 탭 시 전달되는 데이터(`uid`, `cnt`, `mac`, `kid`)를 실시간 검증하고 모바일 정품 인증 화면을 제공하는 **Supabase 기반 고보안 인증 백엔드 시스템**입니다.
+NXP **NTAG 424 DNA** 태그의 **SDM / SUN (Secure Unique NFC Message)** 프로토콜을 기반으로, 스마트폰 NFC 탭 시 전달되는 데이터(`uid`, `cnt`, `mac`, `kid`)를 실시간 검증하고 모바일 정품 인증 화면을 제공하는 **Supabase 백엔드 & GitHub Pages 정품 인증 시스템**입니다.
+
+- 🌐 **공식 정품 인증 웹페이지 (GitHub Pages)**: [https://coolbong.github.io/nfcauthserver/](https://coolbong.github.io/nfcauthserver/)
+- ⚡ **Supabase Edge Function API 엔드포인트**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
+
+---
+
+## 🌟 시스템 구성 및 동작 흐름
+
+```
+[스마트폰 NFC 탭]
+       │
+       ▼
+[GitHub Pages 모바일 반응형 SPA (index.html)]
+  - URL 파라미터(uid, cnt, mac, kid) 파싱
+  - 로딩 애니메이션 및 Supabase Edge Function API 호출 (약 0.1초)
+       │
+       ▼
+[Supabase Edge Function (/v1/nfc)]
+  - PostgreSQL DB에서 해당 키 인덱스(kid)의 암호화된 키 조회
+  - KEK(Master Key)로 메모리 상에서만 일시 복호화 (AES-256-GCM)
+  - NTAG 424 DNA 세션키 유도(SV2) 및 CMAC 검증
+  - 원자적(Atomic) 카운터 비교 및 리플레이 공격 차단
+       │
+       ▼
+[모바일 브라우저 결과 렌더링]
+  - 🟢 SUCCESS: 정품 인증 완료 카드, 제품명, 일련번호, 총 인증 횟수
+  - 🟠 COUNTER_REPLAY: 복제 의심 경고 (이전 카운터 재전송 감지)
+  - 🔴 INVALID_MAC: 위조 의심 경고 (암호 서명 불일치)
+```
 
 ---
 
@@ -34,7 +63,7 @@ NXP **NTAG 424 DNA** 태그의 **SDM / SUN (Secure Unique NFC Message)** 프로�
 
 스마트폰으로 태그를 탭했을 때 전송되는 URL 구조:
 ```text
-GET https://xxx.co/v1/nfc?uid=04C767F2066180&cnt=00000000003D&mac=94EED9EE65337086&kid=1
+https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00000000003D&mac=94EED9EE65337086&kid=1
 ```
 
 | 파라미터 | 필수 여부 | 형식 및 길이 | 상세 설명 |
@@ -42,38 +71,31 @@ GET https://xxx.co/v1/nfc?uid=04C767F2066180&cnt=00000000003D&mac=94EED9EE653370
 | **`uid`** | **필수** | **14자리 Hex** (7 Bytes) | NTAG 424 DNA 고유 하드웨어 일련번호 (예: `04de5f1eacc040`) |
 | **`cnt`** | **필수** | **12자리 Hex** (6 Bytes)<br/>*(6자리 Hex도 호환)* | 탭할 때마다 1씩 증가하는 카운터 (Big/Little Endian 자동 판별) |
 | **`mac`** | **필수** | **16자리 Hex** (8 Bytes)<br/>*(32자리 Hex도 호환)* | 칩 내부에서 계산된 8바이트 Truncated CMAC (`MACt`) |
-| **`kid`** | **선택** | **정수 (Integer)** | 사용할 암호화 키 번호 (생략 시 태그 마스터 DB에 매핑된 키 사용) |
-| **`format`** | **선택** | `html` (기본값) / `json` | API 호출 시 `&format=json` 추가 시 JSON 결과 반환 |
+| **`kid`** | **선택** | **정수 (Integer)** | 사용할 암호화 키 번호 (기본값: `1`) |
 
 ---
 
-## 💻 3. 로컬에서 테스트하는 방법
+## 💻 3. 테스트 및 실서버 확인 방법
 
-### 3.1 단위 테스트 (NXP AN12196 공식 테스트 벡터 검증)
-NXP 공식 문서의 테스트 벡터, KEK 암복호화, 3바이트/6바이트 카운터 연산이 모두 일치하는지 로컬에서 즉시 검증합니다:
+### 3.1 브라우저 실시간 테스트 (GitHub Pages)
+1. **정품 인증 성공 화면**:  
+   👉 [정품 인증 성공 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000000600000&mac=E8B99226E83DD2C9)
+2. **복제 의심 경고 화면 (리플레이 공격 차단)**:  
+   👉 위 성공 링크를 연 상태에서 **새로고침(F5)**을 누르면, 동일 카운터 재전송을 감지하여 즉시 복제 경고 표시.
+3. **위조품 경고 화면 (암호 서명 불일치)**:  
+   👉 [위조품 경고 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000000610000&mac=0000000000000000)
+
+### 3.2 로컬 단위 테스트 (NXP AN12196 공식 테스트 벡터 검증)
 ```bash
 node tests/test_runner.js
 ```
-👉 결과: 서브키 생성, SV2 유도, CMAC, 6바이트 카운터 파싱 100% 통과 확인.
+👉 NXP 공식 문서의 테스트 벡터, KEK 암복호화, 3바이트/6바이트 카운터 연산 100% 통과 확인.
 
-### 3.2 로컬 프리뷰 서버로 모바일 브라우저 화면 확인
-Supabase 자체 도메인의 HTML 렌더링 제한을 우회하여, 브라우저에서 실제 모바일 UI를 바로 확인하는 로컬 프록시 서버입니다:
+### 3.3 로컬 프리뷰 서버 실행
 ```bash
 node scripts/preview.js
 ```
-브라우저 주소창에 접속하여 확인:
-- **정품 인증 성공 화면 (녹색)**:  
-  `http://localhost:3000/v1/nfc?uid=04de5f1eacc040&cnt=000000460000&mac=...`
-- **복제 의심 경고 화면 (주황색)**:  
-  위 링크에서 **새로고침(F5)** 시 이전 카운터 재전송을 감지하여 즉시 복제 경고 표시.
-- **위조품 경고 화면 (빨간색)**:  
-  `http://localhost:3000/v1/nfc?uid=04de5f1eacc040&cnt=000000470000&mac=0000000000000000`
-
-### 3.3 실서버 End-to-End 자동화 테스트
-배포된 Supabase 실서버와 통신하여 4대 시나리오(성공/리플레이/위조/UI)를 한 번에 검증합니다:
-```bash
-node scripts/test_live_server.js
-```
+👉 `http://localhost:3000/v1/nfc?...` 로컬 환경에서도 실시간 검증 가능.
 
 ---
 
@@ -94,36 +116,12 @@ node scripts/manage_keys.js encrypt --index 2 --name "2026 가을 신상품 배�
 
 ## 📁 5. 프로젝트 문서 목차
 
-- 📘 [docs/NFC_DEVELOPER_GUIDE.md](file:///D:/dev/orca/nfcauthserver/docs/NFC_DEVELOPER_GUIDE.md): **NFC 개발 및 발급 담당자를 위한 NTAG 424 DNA 발급 & NDEF 설정 가이드**
-- 📗 [docs/SUPABASE_SETUP_GUIDE.md](file:///D:/dev/orca/nfcauthserver/docs/SUPABASE_SETUP_GUIDE.md): **Supabase 프로젝트 설정, KEK 환경변수, 배포 및 커스텀 도메인 매핑 가이드**
-- 📙 [docs/NFC_AUTH_SERVER_PLAN.md](file:///D:/dev/orca/nfcauthserver/docs/NFC_AUTH_SERVER_PLAN.md): **전체 아키텍처 및 상세 개발 계획서**
-- 📕 [docs/AN12196.pdf](file:///D:/dev/orca/nfcauthserver/docs/AN12196.pdf): **NXP NTAG 424 DNA 공식 기술 백서 (원본)**
+- 📘 [docs/NFC_DEVELOPER_GUIDE.md](docs/NFC_DEVELOPER_GUIDE.md): **NFC 개발 및 발급 담당자를 위한 NTAG 424 DNA 발급 & NDEF 설정 가이드**
+- 📗 [docs/SUPABASE_SETUP_GUIDE.md](docs/SUPABASE_SETUP_GUIDE.md): **Supabase 프로젝트 설정, KEK 환경변수, 배포 및 커스텀 도메인 매핑 가이드**
+- 📙 [docs/NFC_AUTH_SERVER_PLAN.md](docs/NFC_AUTH_SERVER_PLAN.md): **전체 아키텍처 및 상세 개발 계획서**
+- 📕 [docs/AN12196.pdf](docs/AN12196.pdf): **NXP NTAG 424 DNA 공식 기술 백서 (원본)**
 
 ---
 
-## 🌐 6. 프로덕션 도메인 (`xxx.co/v1/nfc`) 연동 가이드 (무료)
-
-Supabase Edge Function은 기본적으로 게이트웨이 보안 정책상 자체 도메인(`*.supabase.co`)에서 `text/html` 응답을 차단하므로, **Cloudflare Workers (완전 무료)**를 리버스 프록시로 앞단에 배치하여 서비스합니다:
-
-```javascript
-// Cloudflare Worker 스크립트 (15줄)
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith('/v1/nfc')) {
-      const targetUrl = new URL('https://<your-project-ref>.supabase.co/functions/v1/nfc' + url.search);
-      const res = await fetch(targetUrl, request);
-      const body = await res.text();
-      return new Response(body, {
-        status: res.status,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store'
-        }
-      });
-    }
-    return fetch(request);
-  }
-};
-```
-👉 이렇게 구성하면 스마트폰 사용자가 `https://xxx.co/v1/nfc?...`로 접속했을 때 모바일 정품 인증 화면이 100% 정상적으로 브라우저에 표시됩니다.
+## 📄 라이선스
+MIT License
