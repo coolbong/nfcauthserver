@@ -1,6 +1,6 @@
 // supabase/functions/nfc/index.ts
 // NTAG 424 DNA NFC 보안 인증 엔드포인트 (/v1/nfc)
-// DB 키 암호화(Envelope Encryption) 및 다중 키(Key Index) 지원
+// DB 키 암호화(Envelope Encryption), 다중 키(Key Index), 3B/6B 카운터 지원
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import { verifyNtag424Mac, decryptNfcKeyFromDb } from './crypto.ts';
 import { renderVerificationPage } from './views.ts';
@@ -9,7 +9,6 @@ import { renderVerificationPage } from './views.ts';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-// 마스터 키 암호화 키 (KEK, 32바이트 = 64 hex 문자)
 const defaultKek = '0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF';
 const masterKek = Deno.env.get('NFC_KEK') || defaultKek;
 
@@ -114,9 +113,10 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (!/^[0-9a-f]{6}$/i.test(cnt)) {
+  // 3바이트(6자리 Hex) 또는 6바이트(12자리 Hex) 모두 지원
+  if (!/^[0-9a-f]{6}$/i.test(cnt) && !/^[0-9a-f]{12}$/i.test(cnt)) {
     return sendResponse(400, 'BAD_REQUEST', {
-      message: '카운터 형식이 올바르지 않습니다 (6자리 Hex 필요).'
+      message: '카운터 형식이 올바르지 않습니다 (6자리 또는 12자리 Hex 필요).'
     });
   }
 

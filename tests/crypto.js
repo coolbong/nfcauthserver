@@ -32,18 +32,12 @@ export function timingSafeEqualStr(a, b) {
 // 1. DB 키 암호화/복호화 (Envelope Encryption - AES-256-GCM)
 // ============================================================================
 
-/**
- * KEK(Key Encryption Key, 32바이트)를 사용하여 NTAG 키(16바이트)를 AES-256-GCM으로 암호화
- * @param {string} plainKeyHex 암호화할 NTAG 424 DNA AES-128 키 (32 hex chars)
- * @param {string} kekHex 32바이트 마스터 KEK (64 hex chars)
- * @returns {{ cipherHex: string, ivHex: string, tagHex: string }}
- */
 export function encryptNfcKey(plainKeyHex, kekHex) {
   const plainBytes = hexToBytes(plainKeyHex);
   const kekBytes = hexToBytes(kekHex);
   if (kekBytes.length !== 32) throw new Error('KEK must be 32 bytes (64 hex chars)');
 
-  const iv = crypto.randomBytes(12); // GCM 표준 12바이트 IV
+  const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', kekBytes, iv);
   const encrypted = Buffer.concat([cipher.update(plainBytes), cipher.final()]);
   const authTag = cipher.getAuthTag();
@@ -55,14 +49,6 @@ export function encryptNfcKey(plainKeyHex, kekHex) {
   };
 }
 
-/**
- * KEK를 사용하여 DB에 저장된 암호화된 키를 복호화
- * @param {string} cipherHex 암호화된 데이터 hex
- * @param {string} ivHex 12바이트 IV hex
- * @param {string} tagHex 16바이트 Auth Tag hex
- * @param {string} kekHex 32바이트 마스터 KEK (64 hex chars)
- * @returns {string} 복호화된 NTAG AES-128 키 hex (32 chars)
- */
 export function decryptNfcKey(cipherHex, ivHex, tagHex, kekHex) {
   const cipherBytes = hexToBytes(cipherHex);
   const ivBytes = hexToBytes(ivHex);
@@ -81,20 +67,14 @@ export function decryptNfcKey(cipherHex, ivHex, tagHex, kekHex) {
 // 2. NTAG 424 DNA SDMMAC (NIST SP 800-38B AES-128-CMAC)
 // ============================================================================
 
-/**
- * AES-128-ECB 단일 블록(16바이트) 암호화 (PKCS7 패딩 없음)
- */
 export function aes128EcbEncryptBlock(key, block) {
   if (key.length !== 16) throw new Error('Key must be 16 bytes');
   if (block.length !== 16) throw new Error('Block must be 16 bytes');
-  const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
+  const cipher = crypto.createCipheriv('aes-128-ecb', key, Buffer.alloc(0));
   cipher.setAutoPadding(false);
   return Buffer.concat([cipher.update(block), cipher.final()]);
 }
 
-/**
- * NIST SP 800-38B 서브키(K1, K2) 생성
- */
 export function generateCmacSubkeys(key) {
   const zeroBlock = Buffer.alloc(16, 0);
   const L = aes128EcbEncryptBlock(key, zeroBlock);
@@ -111,14 +91,12 @@ export function generateCmacSubkeys(key) {
     return { dst, msb: (src[0] & 0x80) !== 0 };
   }
 
-  // K1 계산
   const { dst: shiftedL, msb: msbL } = shiftLeftOneBit(L);
   const K1 = Buffer.from(shiftedL);
   if (msbL) {
     K1[15] ^= constRb;
   }
 
-  // K2 계산
   const { dst: shiftedK1, msb: msbK1 } = shiftLeftOneBit(K1);
   const K2 = Buffer.from(shiftedK1);
   if (msbK1) {
@@ -128,9 +106,6 @@ export function generateCmacSubkeys(key) {
   return { K1, K2 };
 }
 
-/**
- * AES-128-CMAC 계산 (NIST SP 800-38B 표준)
- */
 export function calculateAes128Cmac(key, message) {
   const { K1, K2 } = generateCmacSubkeys(key);
   const blockSize = 16;
@@ -176,9 +151,6 @@ export function calculateAes128Cmac(key, message) {
   return aes128EcbEncryptBlock(key, finalY);
 }
 
-/**
- * 16바이트 CMAC에서 홀수 인덱스 바이트 8개를 취해 Truncated MAC (MACt) 생성
- */
 export function truncateMac(cmac16Bytes) {
   if (cmac16Bytes.length !== 16) throw new Error('CMAC must be 16 bytes');
   const macT = Buffer.alloc(8);
@@ -191,44 +163,74 @@ export function truncateMac(cmac16Bytes) {
   return macT;
 }
 
-/**
- * SDM 세션 MAC 키 유도 벡터 (SV2) 생성 (16바이트)
- */
 export function buildSV2(uid, counterBytes) {
   if (uid.length !== 7) throw new Error('UID must be 7 bytes');
-  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes');
+  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes for NTAG SV2');
   const header = Buffer.from([0x3C, 0xC3, 0x00, 0x01, 0x00, 0x80]);
   return Buffer.concat([header, uid, counterBytes]);
 }
 
+/**
+ * 카운터 파싱 함수: 3바이트(6자리 Hex) 및 6바이트(12자리 Hex) 모두 지원!
+ * NTAG 424 DNA 하드웨어 규격(SV2)에서는 3바이트 LSB-first를 사용하므로,
+ * 6바이트 카운터가 넘어온 경우 정확한 3바이트 LSB 바이트열을 추출합니다.
+ */
 export function parseCounterToLsbBytes(counterInput) {
-  if (typeof counterInput === 'number') {
+  if (typeof counterInput === 'number' || typeof counterInput === 'bigint') {
+    const num = Number(counterInput);
     const buf = Buffer.alloc(3);
-    buf.writeUIntLE(counterInput & 0xFFFFFF, 0, 3);
-    return { bytes: buf, intValue: counterInput };
+    buf.writeUIntLE(num & 0xFFFFFF, 0, 3);
+    return {
+      lsbBytes: buf,
+      intValue: num,
+      candidates: [
+        { lsb: buf, intValue: num }
+      ]
+    };
   }
+
   const cleanHex = counterInput.trim().replace(/^0x/i, '');
-  if (cleanHex.length !== 6) {
-    throw new Error(`Counter hex must be 6 characters (3 bytes), got: ${cleanHex}`);
+  const candidates = [];
+
+  // Case A: 6자리 Hex (3바이트 카운터)
+  if (cleanHex.length === 6) {
+    // 1) Big-Endian 문자열 (예: "00003D" -> 61)
+    const beInt = parseInt(cleanHex, 16);
+    const lsbFromBe = Buffer.alloc(3);
+    lsbFromBe.writeUIntLE(beInt, 0, 3);
+    candidates.push({ lsb: lsbFromBe, intValue: beInt });
+
+    // 2) Little-Endian 바이트열 (예: "3D0000" -> 61)
+    const rawBytes = Buffer.from(cleanHex, 'hex');
+    const leInt = rawBytes.readUIntLE(0, 3);
+    candidates.push({ lsb: rawBytes, intValue: leInt });
   }
+  // Case B: 12자리 Hex (6바이트 카운터)
+  else if (cleanHex.length === 12) {
+    // 1) Big-Endian 6바이트 문자열 (예: "00000000003D" -> 하위 3바이트 "00003D")
+    const last6 = cleanHex.slice(-6);
+    const beInt = parseInt(cleanHex, 16);
+    const lsbFromBe = Buffer.alloc(3);
+    lsbFromBe.writeUIntLE(parseInt(last6, 16), 0, 3);
+    candidates.push({ lsb: lsbFromBe, intValue: beInt });
 
-  const beInt = parseInt(cleanHex, 16);
-  const lsbFromBe = Buffer.alloc(3);
-  lsbFromBe.writeUIntLE(beInt, 0, 3);
-
-  const rawBytes = Buffer.from(cleanHex, 'hex');
-  const leInt = rawBytes.readUIntLE(0, 3);
+    // 2) Little-Endian 6바이트 바이트열 (예: "3D0000000000" -> 앞의 3바이트 "3D0000")
+    const rawBytes6 = Buffer.from(cleanHex, 'hex');
+    const lsb3 = rawBytes6.subarray(0, 3);
+    const leInt = rawBytes6.readUIntLE(0, 6);
+    candidates.push({ lsb: lsb3, intValue: leInt });
+  } else {
+    throw new Error(`Counter hex must be 6 or 12 characters (3 or 6 bytes), got: ${cleanHex}`);
+  }
 
   return {
-    lsbFromBigEndian: lsbFromBe,
-    beIntValue: beInt,
-    rawBytesAsLsb: rawBytes,
-    leIntValue: leInt
+    candidates,
+    intValue: candidates[0].intValue
   };
 }
 
 /**
- * NTAG 424 DNA SDMMAC 검증 함수
+ * NTAG 424 DNA SDMMAC 검증 함수 (3바이트 & 6바이트 카운터 완벽 지원)
  */
 export function verifyNtag424Mac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
   const uid = hexToBytes(uidHex);
@@ -236,42 +238,38 @@ export function verifyNtag424Mac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
   const parsedCnt = parseCounterToLsbBytes(cntHex);
   const receivedMac = macHex.trim().toUpperCase();
 
-  // 1차 시도: Big-Endian 문자열 기반 카운터
-  const sv2_1 = buildSV2(uid, parsedCnt.lsbFromBigEndian);
-  const sessionMacKey_1 = calculateAes128Cmac(fileReadKey, sv2_1);
-  const fullCmac_1 = calculateAes128Cmac(sessionMacKey_1, Buffer.alloc(0));
-  const macT_1 = bytesToHex(truncateMac(fullCmac_1));
-  const fullCmacHex_1 = bytesToHex(fullCmac_1);
+  let firstExpectedMacT = '';
+  let firstFullCmac = '';
+  let firstCounter = parsedCnt.intValue;
 
-  if (timingSafeEqualStr(receivedMac, macT_1) || timingSafeEqualStr(receivedMac, fullCmacHex_1)) {
-    return {
-      isValid: true,
-      expectedMacT: macT_1,
-      counter: parsedCnt.beIntValue,
-      fullCmac: fullCmacHex_1
-    };
-  }
+  for (let i = 0; i < parsedCnt.candidates.length; i++) {
+    const candidate = parsedCnt.candidates[i];
+    const sv2 = buildSV2(uid, candidate.lsb);
+    const sessionMacKey = calculateAes128Cmac(fileReadKey, sv2);
+    const fullCmac = calculateAes128Cmac(sessionMacKey, Buffer.alloc(0));
+    const macT = bytesToHex(truncateMac(fullCmac));
+    const fullCmacHex = bytesToHex(fullCmac);
 
-  // 2차 시도: Little-Endian 문자열 기반 카운터
-  const sv2_2 = buildSV2(uid, parsedCnt.rawBytesAsLsb);
-  const sessionMacKey_2 = calculateAes128Cmac(fileReadKey, sv2_2);
-  const fullCmac_2 = calculateAes128Cmac(sessionMacKey_2, Buffer.alloc(0));
-  const macT_2 = bytesToHex(truncateMac(fullCmac_2));
-  const fullCmacHex_2 = bytesToHex(fullCmac_2);
+    if (i === 0) {
+      firstExpectedMacT = macT;
+      firstFullCmac = fullCmacHex;
+      firstCounter = candidate.intValue;
+    }
 
-  if (timingSafeEqualStr(receivedMac, macT_2) || timingSafeEqualStr(receivedMac, fullCmacHex_2)) {
-    return {
-      isValid: true,
-      expectedMacT: macT_2,
-      counter: parsedCnt.leIntValue,
-      fullCmac: fullCmacHex_2
-    };
+    if (timingSafeEqualStr(receivedMac, macT) || timingSafeEqualStr(receivedMac, fullCmacHex)) {
+      return {
+        isValid: true,
+        expectedMacT: macT,
+        counter: candidate.intValue,
+        fullCmac: fullCmacHex
+      };
+    }
   }
 
   return {
     isValid: false,
-    expectedMacT: macT_1,
-    counter: parsedCnt.beIntValue,
-    fullCmac: fullCmacHex_1
+    expectedMacT: firstExpectedMacT,
+    counter: firstCounter,
+    fullCmac: firstFullCmac
   };
 }
