@@ -1,0 +1,15 @@
+# Supabase Project Configuration
+project_id = "nfcauthserver"
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[functions.nfc]
+# NFC 탭 시 스마트폰 브라우저에서 직접 GET 요청을 보내므로 JWT 인증을 비활성화합니다.
+verify_jwt = false
