@@ -116,6 +116,7 @@ node scripts/manage_keys.js encrypt --index 2 --name "2026 가을 신상품 배�
 
 ## 📁 5. 프로젝트 문서 목차
 
+- 💳 [docs/SMARTCARD_ISSUANCE_GUIDE.md](docs/SMARTCARD_ISSUANCE_GUIDE.md): **NFC 스마트카드 신규 발급, JavaCard 빌드 및 카드 설치 가이드**
 - 📘 [docs/NFC_DEVELOPER_GUIDE.md](docs/NFC_DEVELOPER_GUIDE.md): **NFC 개발 및 발급 담당자를 위한 보안 태그 발급 & NDEF 설정 가이드**
 - 📗 [docs/SUPABASE_SETUP_GUIDE.md](docs/SUPABASE_SETUP_GUIDE.md): **Supabase 프로젝트 설정, KEK 환경변수, 배포 및 커스텀 도메인 매핑 가이드**
 - 📙 [docs/NFC_AUTH_SERVER_PLAN.md](docs/NFC_AUTH_SERVER_PLAN.md): **전체 아키텍처 및 상세 개발 계획서**
