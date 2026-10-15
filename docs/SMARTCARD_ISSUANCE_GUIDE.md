@@ -62,20 +62,23 @@
 
 ---
 
-## 3. 🚀 초간단 빠른 가이드
+## 3. 🚀 초간단 빠른 가이드 (원클릭 설치)
 
-> **기본 테스트 카드(`UID: 04DE5F1EACC040`)로 카드를 새로 굽거나 초기화할 때**는 아래 2단계 명령어로 즉시 완료됩니다.
+> **기본 테스트 카드(`UID: 04DE5F1EACC040`)로 카드를 새로 굽거나 초기화할 때**는 아래 2단계로 즉시 완료됩니다.
 
 ### 1) 리더기에 카드를 올리고 빌드 & 설치 실행
-터미널(CMD 또는 PowerShell)에서 프로젝트 루트로 이동 후 실행:
+터미널(CMD 또는 PowerShell)에서 프로젝트의 `ndef-applet` 폴더로 이동 후 실행합니다:
 ```cmd
 cd ndef-applet
 build_and_install.cmd
 ```
-*(기본적으로 `HID Global OMNIKEY 5422CL Smartcard Reader 0` 리더기를 자동으로 사용합니다)*
+* **동작 순서**:
+  1. `[Step 1/2]` JavaCard 3.0.4 규격으로 `ndef-applet.cap` 자동 컴파일
+  2. `[Step 2/2]` 연결된 `HID Global OMNIKEY 5422CL Smartcard Reader 0`에 카드 애플릿 자동 설치
+  3. 완료 시 `SUCCESS: NDEF Applet successfully installed on your card!` 메시지 표시
 
 ### 2) 서버 DB 카운터 0으로 초기화
-프로젝트 루트 폴더에서 실행:
+설치가 완료되면 프로젝트 루트 폴더에서 아래 명령어를 한 줄 실행합니다:
 ```bash
 node scripts/register_tag.js 04de5f1eacc040 --reset
 ```
