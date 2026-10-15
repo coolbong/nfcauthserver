@@ -1,5 +1,5 @@
 // supabase/functions/nfc/crypto.ts
-// Deno 및 Web 표준 호환 NTAG 424 DNA 보안 연산 및 DB 키 복호화 모듈
+// Deno 및 Web 표준 호환 NFC Authentication 보안 연산 및 DB 키 복호화 모듈
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 
@@ -80,7 +80,7 @@ export async function decryptNfcKeyFromDb(
 }
 
 // ============================================================================
-// 2. NTAG 424 DNA SDMMAC (NIST SP 800-38B AES-128-CMAC)
+// 2. NFC Authentication SDMMAC (NIST SP 800-38B AES-128-CMAC)
 // ============================================================================
 
 export function aes128EcbEncryptBlock(key: Uint8Array, block: Uint8Array): Uint8Array {
@@ -193,7 +193,7 @@ export function buildSV2(uid: Uint8Array, counterBytes: Uint8Array): Uint8Array 
 /**
  * 3바이트(6자리 Hex) Big-Endian 카운터 파싱
  * URL로 전달되는 cnt 파라미터는 Big-Endian 형식입니다 (예: "00003D" -> 61, "000001" -> 1).
- * NTAG 424 DNA SV2 세션 유도 벡터에는 3바이트 LSB-first(Little-Endian 바이트열)로 변환하여 전달합니다.
+ * NFC Authentication SV2 세션 유도 벡터에는 3바이트 LSB-first(Little-Endian 바이트열)로 변환하여 전달합니다.
  */
 export function parseCounter(cntHex: string) {
   const cleanHex = cntHex.trim().replace(/^0x/i, '');
@@ -226,7 +226,7 @@ export interface VerificationResult {
   fullCmac: string;
 }
 
-export function verifyNtag424Mac(
+export function verifyNfcAuthMac(
   uidHex: string,
   cntHex: string,
   macHex: string,

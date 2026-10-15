@@ -1,5 +1,5 @@
 // scripts/manage_keys.js
-// NTAG 424 DNA AES 키를 KEK(AES-256-GCM)로 안전하게 암호화하여 Supabase DB에 등록할 SQL을 생성하는 CLI 도구
+// NFC Authentication 보안 AES 키를 KEK(AES-256-GCM)로 안전하게 암호화하여 Supabase DB에 등록할 SQL을 생성하는 CLI 도구
 import crypto from 'node:crypto';
 import { encryptNfcKey, decryptNfcKey, bytesToHex } from '../tests/crypto.js';
 
@@ -12,7 +12,7 @@ function printHelp() {
   1. 새 KEK (Master Key) 생성:
      node scripts/manage_keys.js generate-kek
 
-  2. NTAG 424 DNA 키 암호화 및 DB Insert SQL 생성:
+  2. NFC 보안 키 암호화 및 DB Insert SQL 생성:
      node scripts/manage_keys.js encrypt --index <번호> --name "<키이름>" --key <16바이트HEX> [--kek <32바이트HEX>]
 
 예시:
@@ -39,7 +39,7 @@ if (command === 'generate-kek') {
 
 if (command === 'encrypt') {
   let keyIndex = 1;
-  let keyName = '기본 NTAG 키';
+  let keyName = '기본 NFC 인증 키';
   let plainKey = '00000000000000000000000000000000';
   let kek = DEFAULT_KEK;
 
@@ -61,7 +61,7 @@ if (command === 'encrypt') {
 
   console.log('\n===============================================================');
   console.log(`🔐 [키 암호화 완료 - 인덱스 #${keyIndex}]`);
-  console.log(`• 원본 NTAG 키 (평문)  : ${plainKey.toUpperCase()}`);
+  console.log(`• 원본 NFC 키 (평문)  : ${plainKey.toUpperCase()}`);
   console.log(`• 암호화된 값 (Cipher) : ${encrypted.cipherHex} (DB에 평문은 노출되지 않음)`);
   console.log(`• 초기화 벡터 (IV)     : ${encrypted.ivHex}`);
   console.log(`• 인증 태그 (Auth Tag) : ${encrypted.tagHex}`);

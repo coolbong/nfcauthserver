@@ -20,7 +20,7 @@ export function renderVerificationPage(params: ViewParams): string {
 
   let themeColor = '#10b981'; // green
   let badgeTitle = '정품 인증 완료';
-  let badgeSubtitle = 'NXP NTAG 424 DNA 보안 칩을 통해 정품임이 확인되었습니다.';
+  let badgeSubtitle = 'NFC 보안 칩 암호화 검증을 통해 정품임이 확인되었습니다.';
   let iconSvg = `
     <svg class="icon icon-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -76,7 +76,7 @@ export function renderVerificationPage(params: ViewParams): string {
 
   // 제품 정보 포맷
   const pInfo = params.productInfo || {};
-  const brand = (pInfo['brand'] as string) || 'ORCA Security';
+  const brand = (pInfo['brand'] as string) || 'NFC Authentication';
   const model = (pInfo['model'] as string) || params.tagName || '정품 인증 제품';
   const serialNumber = (pInfo['serialNumber'] as string) || (params.uid ? `SN-${params.uid.toUpperCase().slice(-8)}` : 'N/A');
   const supportUrl = (pInfo['supportUrl'] as string) || '#';
@@ -90,7 +90,7 @@ export function renderVerificationPage(params: ViewParams): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>${badgeTitle} - Orca NFC Auth</title>
+  <title>${badgeTitle} - NFC Authentication</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -282,7 +282,7 @@ export function renderVerificationPage(params: ViewParams): string {
       </a>
 
       <div class="footer">
-        <p>보안 인증 프로토콜: NXP NTAG 424 DNA SUN</p>
+        <p>보안 인증 프로토콜: NFC Dynamic Messaging (AES-128 CMAC)</p>
         <div class="tech-badge">
           <span>🔒 AES-128 CMAC Crypto Engine</span>
         </div>

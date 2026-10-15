@@ -1,6 +1,6 @@
-# NTAG 424 DNA 발급 및 NFC 개발자 가이드 (NDEF & SDM 미러링 규격)
+# NFC Authentication 발급 및 개발자 가이드 (NDEF & SDM 미러링 규격)
 
-본 문서는 **NTAG 424 DNA (또는 NTAG 424 DNA TagTamper)** 태그를 발급(Personalization)하고, 서버(`https://xxx.co/v1/nfc`)와 연동하기 위해 NFC 태그 내부 NDEF 레코드 및 SDM(Secure Dynamic Messaging) 설정을 구성하는 NFC 개발자/발급 담당자용 공식 기술 가이드입니다.
+본 문서는 **NFC Authentication 보안 태그**를 발급(Personalization)하고, 서버(`https://xxx.co/v1/nfc`)와 연동하기 위해 NFC 태그 내부 NDEF 레코드 및 SDM(Secure Dynamic Messaging) 설정을 구성하는 NFC 개발자/발급 담당자용 기술 가이드입니다.
 
 ---
 
@@ -8,17 +8,17 @@
 
 | 항목 | 규격 사양 | 비고 |
 | :--- | :--- | :--- |
-| **태그 칩셋** | **NXP NTAG 424 DNA** (NT4H2421Gx) 또는 **TagTamper** | ISO/IEC 14443-A, Type 4 Tag |
+| **태그 칩셋** | **Type 4 NFC 보안 암호화 태그** | ISO/IEC 14443-A, Type 4 Tag |
 | **NDEF 파일 ID** | File `0x02` (EF `0xE104`) | 기본 NDEF 저장 파일 |
 | **암호화 알고리즘** | **AES-128 (대칭키)** | NIST SP 800-38B CMAC |
 | **통신 모드** | **CommMode.PLAIN (SDM Mirroring)** | 스마트폰 기본 브라우저 열기용 |
-| **미러링 모드** | **Plain UID + Plain Counter + SDMMAC** | AN12196 Section 3.4.1 기준 |
+| **미러링 모드** | **Plain UID + Plain Counter + SDMMAC** | NIST SP 800-38B CMAC 기준 |
 
 ---
 
 ## 2. NDEF URL 템플릿 및 파라미터 규격
 
-스마트폰 탭 시 NTAG 424 DNA 칩이 동적으로 URL 내의 플레이스홀더(`00...00`)를 실제 데이터로 치환합니다.
+스마트폰 탭 시 보안 NFC 칩이 동적으로 URL 내의 플레이스홀더(`00...00`)를 실제 데이터로 치환합니다.
 
 ### 2.1 작성할 기본 NDEF URL 템플릿
 ```text
@@ -36,13 +36,13 @@ https://xxx.co/v1/nfc?uid=00000000000000&cnt=000000&mac=0000000000000000&kid=1
 
 > [!NOTE]
 > **카운터 엔디언 규격**:
-> 서버는 NTAG 424 DNA 태그에서 URL로 전달되는 3바이트 카운터를 **Big-Endian(예: 000001, 00003D)** 규격으로 처리합니다.
+> 서버는 NFC Authentication 태그에서 URL로 전달되는 3바이트 카운터를 **Big-Endian(예: 000001, 00003D)** 규격으로 처리합니다.
 
 ---
 
-## 3. NTAG 424 DNA 키 구조 (Application Keys)
+## 3. NFC 보안 태그 키 구조 (Application Keys)
 
-NTAG 424 DNA는 5개의 AES-128 키(Key 0x00 ~ 0x04)를 지원합니다:
+보안 NFC 태그는 5개의 AES-128 키(Key 0x00 ~ 0x04)를 지원합니다:
 
 | 키 번호 | 키 명칭 | 권장 설정 용도 | 서버 연동 여부 |
 | :---: | :--- | :--- | :---: |
@@ -53,7 +53,7 @@ NTAG 424 DNA는 5개의 AES-128 키(Key 0x00 ~ 0x04)를 지원합니다:
 
 ---
 
-## 4. 태그 발급(Personalization) 절차 (AN12196 Section 5)
+## 4. 태그 발급(Personalization) 절차
 
 태그 발급 소프트웨어 또는 공장 프로그래머에서 다음 APDU 시퀀스를 실행합니다.
 
@@ -61,7 +61,7 @@ NTAG 424 DNA는 5개의 AES-128 키(Key 0x00 ~ 0x04)를 지원합니다:
 sequenceDiagram
     autonumber
     participant Programmer as 발급기 (NFC Writer)
-    participant Tag as NTAG 424 DNA
+    participant Tag as 보안 NFC 태그
 
     Programmer->>Tag: 1. SELECT NDEF Application (AID: D2760000850101)
     Tag-->>Programmer: 90 00 (OK)
@@ -128,11 +128,11 @@ VALUES (
 
 ---
 
-## 6. NFC 모바일 앱(TagWriter 등) 테스트 설정 팁
-- PC 프로그래머 대신 **NXP TagWriter** 또는 **NFC Tools Pro** 스마트폰 앱으로 PoC 테스트를 진행할 경우:
+## 6. NFC 모바일 앱(NFC Tools Pro 등) 테스트 설정 팁
+- PC 프로그래머 대신 **NFC 프로그래밍 스마트폰 앱**(예: NFC Tools Pro 등)으로 PoC 테스트를 진행할 경우:
   1. `Write` $\rightarrow$ `New dataset` $\rightarrow$ `Link` 선택
   2. URI 타입 선택 후 URL 입력:
-     `https://xxx.co/v1/nfc?uid=00000000000000&cnt=000000000000&mac=0000000000000000&kid=1`
+     `https://xxx.co/v1/nfc?uid=00000000000000&cnt=000000&mac=0000000000000000&kid=1`
   3. `Advanced settings` / `Mirroring` 활성화:
      - Mirror UID: 체크
      - Mirror Interaction Counter: 체크

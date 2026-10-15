@@ -1,5 +1,5 @@
 -- ==============================================================================
--- NTAG 424 DNA NFC 보안 태그 인증 시스템 데이터베이스 스키마
+-- NFC Authentication 보안 태그 인증 시스템 데이터베이스 스키마
 -- 파일명: supabase/migrations/20261014000000_create_nfc_auth_schema.sql
 -- ==============================================================================
 
@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.nfc_keys (
     key_index INTEGER PRIMARY KEY,                      -- 키 식별 번호 (예: 1, 2, 3... URL ?kid=1 로 지정 가능)
     key_name VARCHAR(100) NOT NULL,                     -- 키 용도 명칭 (예: '2026년 공장출하 기본키', '배치 A 전용 키')
-    encrypted_key VARCHAR(64) NOT NULL,                 -- KEK(AES-256-GCM)로 암호화된 NTAG 키 값
+    encrypted_key VARCHAR(64) NOT NULL,                 -- KEK(AES-256-GCM)로 암호화된 NFC 보안 키 값
     key_iv VARCHAR(32) NOT NULL,                        -- AES-GCM 초기화 벡터 (IV, 12바이트 hex)
     key_tag VARCHAR(32) NOT NULL,                       -- AES-GCM 무결성 인증 태그 (Auth Tag, 16바이트 hex)
     status VARCHAR(20) DEFAULT 'ACTIVE' NOT NULL,       -- 'ACTIVE', 'RETIRED', 'REVOKED'
@@ -174,14 +174,14 @@ SET key_name = EXCLUDED.key_name,
 INSERT INTO public.nfc_tags (uid, tag_name, key_index, last_counter, status, product_info)
 VALUES (
     '04de5f1eacc040',
-    'NTAG 424 DNA 보안 인증 테스트 태그',
+    'NFC 보안 인증 테스트 태그',
     1,
     0,
     'ACTIVE',
     '{
-        "brand": "Orca Authentication",
-        "model": "NTAG-424-DNA-PoC",
-        "serialNumber": "ORCA-TEST-0001",
+        "brand": "NFC Authentication",
+        "model": "NFC-AUTH-PoC",
+        "serialNumber": "NFC-AUTH-0001",
         "description": "DB 키 암호화 및 다중 키 관리가 적용된 정품 태그입니다.",
         "supportUrl": "https://example.com/support"
     }'::jsonb

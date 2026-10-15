@@ -1,6 +1,6 @@
 # Supabase NFC 인증 서버 연동 및 배포 가이드 (DB 키 암호화 및 다중 키 지원)
 
-본 문서는 NTAG 424 DNA 태그의 3가지 데이터(`uid`, `cnt`, `mac`) 및 선택적 키 인덱스(`kid`)를 전달받아 **DB에 안전하게 암호화 보관된 키**를 이용해 정품 인증을 수행하는 **Supabase 백엔드 연동 및 운영 절차**를 설명합니다.
+본 문서는 NFC Authentication 보안 태그의 3가지 데이터(`uid`, `cnt`, `mac`) 및 선택적 키 인덱스(`kid`)를 전달받아 **DB에 안전하게 암호화 보관된 키**를 이용해 정품 인증을 수행하는 **Supabase 백엔드 연동 및 운영 절차**를 설명합니다.
 
 ---
 
@@ -8,7 +8,7 @@
 
 > **"DB 데이터가 해커나 내부자에 의해 통째로 유출/덤프되더라도 실제 AES 키를 절대 알아볼 수 없습니다."**
 
-- **NTAG 424 DNA AES 키 (DEK)**:
+- **NFC 보안 AES 키 (DEK)**:
   - 데이터베이스의 `public.nfc_keys` 테이블에 저장될 때 **AES-256-GCM** 방식으로 강력하게 암호화되어 저장됩니다.
   - 테이블에는 오직 난수 같은 암호문(`encrypted_key`), 초기화 벡터(`key_iv`), 인증 태그(`key_tag`)만 기록됩니다.
 - **마스터 키 암호화 키 (KEK, Key Encryption Key)**:
@@ -39,7 +39,7 @@
 ## 3. 데이터베이스 스키마 및 저장 프로시저 적용
 
 1. Supabase 대시보드 좌측 메뉴에서 **SQL Editor**를 클릭합니다.
-2. **[New query]**를 열고 [supabase/migrations/20261014000000_create_nfc_auth_schema.sql](file:///D:/dev/orca/nfcauthserver/supabase/migrations/20261014000000_create_nfc_auth_schema.sql) 파일의 내용을 복사하여 붙여넣습니다.
+2. **[New query]**를 열고 `supabase/migrations/20261014000000_create_nfc_auth_schema.sql` 파일의 내용을 복사하여 붙여넣습니다.
 3. **[Run]** (`Ctrl + Enter`) 버튼을 클릭하여 실행합니다.
 
 ### 생성되는 테이블 및 기능
@@ -94,7 +94,7 @@ export default {
 
 키를 여러 개 운영하거나 정기적으로 교체(Key Rotation)할 수 있습니다.
 
-### 새 NTAG 키를 암호화하여 DB에 등록하기 (`scripts/manage_keys.js`)
+### 새 보안 키를 암호화하여 DB에 등록하기 (`scripts/manage_keys.js`)
 예를 들어, 2번 키(`0102030405060708090A0B0C0D0E0F10`)를 신규 발급하여 DB에 등록하고 싶다면:
 
 ```powershell

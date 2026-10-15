@@ -64,7 +64,7 @@ export function decryptNfcKey(cipherHex, ivHex, tagHex, kekHex) {
 }
 
 // ============================================================================
-// 2. NTAG 424 DNA SDMMAC (NIST SP 800-38B AES-128-CMAC)
+// 2. NFC Authentication SDMMAC (NIST SP 800-38B AES-128-CMAC)
 // ============================================================================
 
 export function aes128EcbEncryptBlock(key, block) {
@@ -165,7 +165,7 @@ export function truncateMac(cmac16Bytes) {
 
 export function buildSV2(uid, counterBytes) {
   if (uid.length !== 7) throw new Error('UID must be 7 bytes');
-  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes for NTAG SV2');
+  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes for SV2');
   const header = Buffer.from([0x3C, 0xC3, 0x00, 0x01, 0x00, 0x80]);
   return Buffer.concat([header, uid, counterBytes]);
 }
@@ -208,9 +208,9 @@ export function parseCounterToLsbBytes(counterInput) {
 }
 
 /**
- * NTAG 424 DNA SDMMAC 검증 함수 (3바이트 Big-Endian 카운터 규격)
+ * NFC Authentication SDMMAC 검증 함수 (3바이트 Big-Endian 카운터 규격)
  */
-export function verifyNtag424Mac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
+export function verifyNfcAuthMac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
   const uid = hexToBytes(uidHex);
   const fileReadKey = hexToBytes(fileReadKeyHex);
   const parsedCnt = parseCounterToLsbBytes(cntHex);

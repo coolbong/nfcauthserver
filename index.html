@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NFC 정품 보안 인증 시스템 - Orca Auth</title>
+  <title>NFC 정품 보안 인증 시스템 - NFC Authentication</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -181,7 +181,7 @@
 
       <!-- 제목 및 설명 -->
       <h1 id="title">보안 칩 인증 중...</h1>
-      <p class="subtitle" id="subtitle">NTAG 424 DNA 보안 서명을 실시간 검증하고 있습니다.</p>
+      <p class="subtitle" id="subtitle">NFC 보안 칩 암호화 서명을 실시간 검증하고 있습니다.</p>
 
       <!-- 상세 정보 박스 -->
       <div class="info-box" id="infoBox" style="display: none;"></div>
@@ -197,7 +197,7 @@
 
       <!-- 푸터 -->
       <div class="footer">
-        <p>NXP NTAG 424 DNA Secure Dynamic Messaging</p>
+        <p>NFC Dynamic Security Messaging Authentication</p>
         <div class="tech-badge">
           <span>🔒 AES-128 CMAC & Envelope Encryption</span>
         </div>
@@ -227,7 +227,7 @@
       // 파라미터 누락 처리
       if (!uid || !cnt || !mac) {
         titleEl.textContent = 'NFC 인증 파라미터 필요';
-        subtitleEl.textContent = '스마트폰으로 NTAG 424 DNA 태그를 탭하거나 올바른 인증 URL로 접속해주세요.';
+        subtitleEl.textContent = '스마트폰으로 NFC 보안 태그를 탭하거나 올바른 인증 URL로 접속해주세요.';
         cardStripEl.style.background = '#64748b';
         iconWrapperEl.innerHTML = `
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -259,7 +259,7 @@
             </svg>
           `;
           titleEl.textContent = '정품 인증 완료';
-          subtitleEl.textContent = 'NXP NTAG 424 DNA 암호화 검증을 통과한 공식 정품입니다.';
+          subtitleEl.textContent = 'NFC 보안 칩 암호화 검증을 통과한 공식 정품입니다.';
 
           const pInfo = data.productInfo || {};
           const firstDate = data.firstVerifiedAt ? new Date(data.firstVerifiedAt).toLocaleString('ko-KR') : '방금 전';
@@ -267,7 +267,7 @@
           infoBoxEl.innerHTML = `
             <div class="info-row">
               <span class="info-label">브랜드</span>
-              <span class="info-value">${pInfo.brand || 'Orca Authentication'}</span>
+              <span class="info-value">${pInfo.brand || 'NFC Authentication'}</span>
             </div>
             <div class="info-row">
               <span class="info-label">제품명</span>

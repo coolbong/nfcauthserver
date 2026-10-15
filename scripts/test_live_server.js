@@ -1,5 +1,5 @@
 // scripts/test_live_server.js
-import { verifyNtag424Mac } from '../tests/crypto.js';
+import { verifyNfcAuthMac } from '../tests/crypto.js';
 
 const baseUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc';
 const uid = '04DE5F1EACC040';
@@ -10,7 +10,7 @@ console.log('🌐 [배포된 Supabase 실서버 End-to-End 전체 테스트 시�
 async function testLive() {
   // 현재 DB의 last_counter보다 큰 새 카운터(예: cnt=65 -> Big-Endian '000041')로 정품 인증 테스트
   const nextCntHex = '000041'; // decimal 65
-  const cryptoSuccess = verifyNtag424Mac({
+  const cryptoSuccess = verifyNfcAuthMac({
     uidHex: uid,
     cntHex: nextCntHex,
     macHex: '0000000000000000',
@@ -40,7 +40,7 @@ async function testLive() {
 
   // 4. [모바일 HTML UI 렌더링 테스트]
   const cntHtml = '000043'; // decimal 67
-  const cryptoHtml = verifyNtag424Mac({
+  const cryptoHtml = verifyNfcAuthMac({
     uidHex: uid,
     cntHex: cntHtml,
     macHex: '0000000000000000',

@@ -1,7 +1,7 @@
-# NTAG 424 DNA (uid / cnt / mac / kid) 기반 Supabase 인증 서버 & 웹페이지 개발 계획서
+# NFC Authentication (uid / cnt / mac / kid) 기반 Supabase 인증 서버 & 웹페이지 개발 계획서
 
 ## 1. 개요 및 목적
-본 프로젝트는 **NXP NTAG 424 DNA** 태그의 **SDM (Secure Dynamic Messaging) / SUN (Secure Unique NFC Message)** 기술을 활용하여, 스마트폰으로 NFC 태그를 탭했을 때 전달되는 데이터(`uid`, `cnt`, `mac` 및 선택적 `kid`)를 기반으로 **Supabase** 백엔드에서 정품 여부 및 재전송 공격을 실시간 검증하고 모바일 인증 웹페이지를 제공하는 서버를 구축합니다.
+본 프로젝트는 **동적 보안 메시징(SDM)** 기술을 지원하는 보안 NFC 태그를 활용하여, 스마트폰으로 NFC 태그를 탭했을 때 전달되는 데이터(`uid`, `cnt`, `mac` 및 선택적 `kid`)를 기반으로 **Supabase** 백엔드에서 정품 여부 및 재전송 공격을 실시간 검증하고 모바일 인증 웹페이지를 제공하는 서버를 구축합니다.
 
 - **DB 키 암호화 (Envelope Encryption)**: 데이터베이스가 통째로 탈취/덤프되더라도 공격자가 평문 AES 키를 알아볼 수 없도록 **AES-256-GCM**으로 암호화하여 저장합니다.
 - **다중 키 풀 및 키 인덱스 (`kid`) 지원**: 여러 개의 키를 번호(인덱스)별로 관리할 수 있으며, URL 쿼리 파라미터 `&kid=...`를 통해 어떤 키를 사용하는지 지정하거나 태그 레코드에 매핑된 키를 자동으로 사용합니다.
@@ -18,8 +18,8 @@ GET https://xxx.co/v1/nfc?uid=04C767F2066180&cnt=000001&mac=54A45B2C3A558765&kid
 
 | 파라미터명 | 필수 여부 | 데이터 규격 | 상세 설명 |
 | :--- | :---: | :--- | :--- |
-| **`uid`** | **필수** | **14자리 Hex** (7 바이트) | NTAG 424 DNA 고유 하드웨어 일련번호 (예: `04C767F2066180`) |
-| **`cnt`** | **필수** | **6자리 Hex** (3 바이트) | 탭할 때마다 1씩 증가하는 카운터 (예: `000001` 또는 LSB first `010000`) |
+| **`uid`** | **필수** | **14자리 Hex** (7 바이트) | NFC 보안 태그 고유 하드웨어 일련번호 (예: `04C767F2066180`) |
+| **`cnt`** | **필수** | **6자리 Hex** (3 바이트) | 탭할 때마다 1씩 증가하는 Big-Endian 카운터 (예: `000001`) |
 | **`mac`** | **필수** | **16자리 Hex** (8 바이트)<br/>*(32자리 Hex도 호환)* | **SDMMAC (NIST SP 800-38B CMAC)**<br/>칩에서 계산된 8바이트 Truncated CMAC (16자리 Hex 문자) |
 | **`kid`** | **선택** | **정수 (Integer)** | 사용할 암호화 키 번호 (예: `1`, `2`). 생략 시 태그 마스터 DB에 매핑된 기본 키 사용 |
 
@@ -40,14 +40,14 @@ flowchart TD
     subgraph Edge Function 런타임 메모리 (RAM)
         Row --> Decrypt["AES-256-GCM 복호화<br/>(KEK + IV + Cipher + Tag)"]
         KEK --> Decrypt
-        Decrypt --> PlainKey["임시 복원된 평문 NTAG 키<br/>(16 바이트 AES-128)"]
+        Decrypt --> PlainKey["임시 복원된 평문 보안 키<br/>(16 바이트 AES-128)"]
         PlainKey --> Verify["CMAC 검증 연산 후<br/>메모리에서 즉시 해제"]
     end
 ```
 
-1. **DB 저장 시점**: 관리자가 `scripts/manage_keys.js`를 사용해 평문 NTAG 키를 AES-256-GCM으로 암호화하여 DB에 삽입합니다. (DB에는 암호문, IV, Tag만 저장됨)
-2. **검증 시점**: Edge Function이 DB에서 암호화된 키를 읽어온 뒤, 환경변수 `NFC_KEK`로 메모리 상에서만 일시적으로 복호화하여 NTAG 424 DNA의 CMAC을 검증합니다.
-3. **보안 효과**: DB 관리자나 SQL 덤프 파일이 유출되더라도 `NFC_KEK`가 없으면 원본 NTAG 키를 절대 복원할 수 없습니다.
+1. **DB 저장 시점**: 관리자가 `scripts/manage_keys.js`를 사용해 평문 보안 키를 AES-256-GCM으로 암호화하여 DB에 삽입합니다. (DB에는 암호문, IV, Tag만 저장됨)
+2. **검증 시점**: Edge Function이 DB에서 암호화된 키를 읽어온 뒤, 환경변수 `NFC_KEK`로 메모리 상에서만 일시적으로 복호화하여 보안 태그의 CMAC을 검증합니다.
+3. **보안 효과**: DB 관리자나 SQL 덤프 파일이 유출되더라도 `NFC_KEK`가 없으면 원본 보안 키를 절대 복원할 수 없습니다.
 
 ---
 
@@ -58,7 +58,7 @@ flowchart TD
 CREATE TABLE IF NOT EXISTS public.nfc_keys (
     key_index INTEGER PRIMARY KEY,                      -- 키 번호 (1, 2, 3...)
     key_name VARCHAR(100) NOT NULL,                     -- 키 명칭 (예: '2026 Q1 배치 전용 키')
-    encrypted_key VARCHAR(64) NOT NULL,                 -- KEK로 암호화된 NTAG 키
+    encrypted_key VARCHAR(64) NOT NULL,                 -- KEK로 암호화된 보안 키
     key_iv VARCHAR(32) NOT NULL,                        -- AES-GCM IV (12바이트 hex)
     key_tag VARCHAR(32) NOT NULL,                       -- AES-GCM Auth Tag (16바이트 hex)
     status VARCHAR(20) DEFAULT 'ACTIVE' NOT NULL,       -- 'ACTIVE', 'RETIRED', 'REVOKED'
@@ -133,12 +133,12 @@ $$;
 
 ## 6. 키 관리 CLI 도구 (`scripts/manage_keys.js`)
 
-관리자가 새로운 NTAG 키를 KEK로 암호화하여 DB에 등록할 수 있는 도구를 제공합니다:
+관리자가 새로운 보안 키를 KEK로 암호화하여 DB에 등록할 수 있는 도구를 제공합니다:
 
 ```powershell
 # 1. 신규 마스터 KEK 생성
 node scripts/manage_keys.js generate-kek
 
-# 2. 신규 NTAG 키 암호화 및 DB 등록용 SQL 생성
+# 2. 신규 보안 키 암호화 및 DB 등록용 SQL 생성
 node scripts/manage_keys.js encrypt --index 2 --name "2026 봄 컬렉션 전용 키" --key 0102030405060708090A0B0C0D0E0F10
 ```

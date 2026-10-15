@@ -1,8 +1,8 @@
 // supabase/functions/nfc/index.ts
-// NTAG 424 DNA NFC 보안 인증 엔드포인트 (/v1/nfc)
-// DB 키 암호화(Envelope Encryption), 다중 키(Key Index), 3B/6B 카운터 지원
+// NFC Authentication 보안 인증 엔드포인트 (/v1/nfc)
+// DB 키 암호화(Envelope Encryption), 다중 키(Key Index), 3바이트 Big-Endian 카운터 지원
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
-import { verifyNtag424Mac, decryptNfcKeyFromDb } from './crypto.ts';
+import { verifyNfcAuthMac, decryptNfcKeyFromDb } from './crypto.ts';
 import { renderVerificationPage } from './views.ts';
 
 // Supabase 클라이언트 초기화
@@ -187,9 +187,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // 6. DB의 암호화된 키를 KEK로 일시 복호화
-    let plainNtagKeyHex: string;
+    let plainNfcKeyHex: string;
     try {
-      plainNtagKeyHex = await decryptNfcKeyFromDb(
+      plainNfcKeyHex = await decryptNfcKeyFromDb(
         keyRecord.encrypted_key,
         keyRecord.key_iv,
         keyRecord.key_tag,
@@ -200,8 +200,8 @@ Deno.serve(async (req: Request) => {
       return sendResponse(500, 'SERVER_ERROR', { message: '보안 키 복호화에 실패했습니다 (KEK 설정 확인 필요).' });
     }
 
-    // 7. NTAG 424 DNA 암호학적 CMAC 서명 검증
-    const cryptoResult = verifyNtag424Mac(uid, cnt, mac, plainNtagKeyHex);
+    // 7. NFC Authentication 암호학적 CMAC 서명 검증
+    const cryptoResult = verifyNfcAuthMac(uid, cnt, mac, plainNfcKeyHex);
 
     if (!cryptoResult.isValid) {
       await supabase.rpc('verify_and_log_nfc_scan', {
