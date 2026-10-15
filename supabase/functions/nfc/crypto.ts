@@ -191,48 +191,31 @@ export function buildSV2(uid: Uint8Array, counterBytes: Uint8Array): Uint8Array 
 }
 
 /**
- * 3바이트(6자리 Hex) 및 6바이트(12자리 Hex) 카운터 모두 지원
+ * 3바이트(6자리 Hex) Big-Endian 카운터 파싱
+ * URL로 전달되는 cnt 파라미터는 Big-Endian 형식입니다 (예: "00003D" -> 61, "000001" -> 1).
+ * NTAG 424 DNA SV2 세션 유도 벡터에는 3바이트 LSB-first(Little-Endian 바이트열)로 변환하여 전달합니다.
  */
 export function parseCounter(cntHex: string) {
   const cleanHex = cntHex.trim().replace(/^0x/i, '');
-  const candidates: { lsb: Uint8Array; intValue: number }[] = [];
-
-  if (cleanHex.length === 6) {
-    // 1) Big-Endian 문자열 (예: "00003D" -> 61)
-    const beInt = parseInt(cleanHex, 16);
-    const lsbFromBe = new Uint8Array(3);
-    lsbFromBe[0] = beInt & 0xFF;
-    lsbFromBe[1] = (beInt >> 8) & 0xFF;
-    lsbFromBe[2] = (beInt >> 16) & 0xFF;
-    candidates.push({ lsb: lsbFromBe, intValue: beInt });
-
-    // 2) Little-Endian 바이트열 (예: "3D0000" -> 61)
-    const rawBytes = hexToBytes(cleanHex);
-    const leInt = rawBytes[0] | (rawBytes[1] << 8) | (rawBytes[2] << 16);
-    candidates.push({ lsb: rawBytes, intValue: leInt });
-  } else if (cleanHex.length === 12) {
-    // 6바이트 카운터 (12자리 Hex)
-    // 1) Big-Endian 6바이트 (예: "00000000003D")
-    const last6 = cleanHex.slice(-6);
-    const beInt = parseInt(last6, 16);
-    const lsbFromBe = new Uint8Array(3);
-    lsbFromBe[0] = beInt & 0xFF;
-    lsbFromBe[1] = (beInt >> 8) & 0xFF;
-    lsbFromBe[2] = (beInt >> 16) & 0xFF;
-    candidates.push({ lsb: lsbFromBe, intValue: beInt });
-
-    // 2) Little-Endian 6바이트 (예: "3D0000000000")
-    const rawBytes6 = hexToBytes(cleanHex);
-    const lsb3 = rawBytes6.subarray(0, 3);
-    const leInt = lsb3[0] | (lsb3[1] << 8) | (lsb3[2] << 16);
-    candidates.push({ lsb: lsb3, intValue: leInt });
-  } else {
-    throw new Error(`Counter hex must be 6 or 12 characters (3 or 6 bytes), got: ${cleanHex}`);
+  if (cleanHex.length !== 6) {
+    throw new Error(`Counter hex must be 6 characters (3 bytes), got: ${cleanHex}`);
   }
 
+  // Big-Endian 16진수 문자열 파싱 (예: "00003D" -> 61)
+  const intValue = parseInt(cleanHex, 16);
+  if (isNaN(intValue)) {
+    throw new Error(`Invalid counter hex: ${cleanHex}`);
+  }
+
+  // SV2 세션 유도 벡터에 전달할 3바이트 LSB-first 바이트열 생성
+  const lsb = new Uint8Array(3);
+  lsb[0] = intValue & 0xFF;
+  lsb[1] = (intValue >> 8) & 0xFF;
+  lsb[2] = (intValue >> 16) & 0xFF;
+
   return {
-    candidates,
-    intValue: candidates[0].intValue
+    lsb,
+    intValue
   };
 }
 
@@ -254,38 +237,18 @@ export function verifyNtag424Mac(
   const parsedCnt = parseCounter(cntHex);
   const receivedMac = macHex.trim().toUpperCase();
 
-  let firstExpectedMacT = '';
-  let firstFullCmac = '';
-  let firstCounter = parsedCnt.intValue;
+  const sv2 = buildSV2(uid, parsedCnt.lsb);
+  const sessionMacKey = calculateAes128Cmac(fileReadKey, sv2);
+  const fullCmac = calculateAes128Cmac(sessionMacKey, new Uint8Array(0));
+  const macT = bytesToHex(truncateMac(fullCmac));
+  const fullCmacHex = bytesToHex(fullCmac);
 
-  for (let i = 0; i < parsedCnt.candidates.length; i++) {
-    const candidate = parsedCnt.candidates[i];
-    const sv2 = buildSV2(uid, candidate.lsb);
-    const sessionMacKey = calculateAes128Cmac(fileReadKey, sv2);
-    const fullCmac = calculateAes128Cmac(sessionMacKey, new Uint8Array(0));
-    const macT = bytesToHex(truncateMac(fullCmac));
-    const fullCmacHex = bytesToHex(fullCmac);
-
-    if (i === 0) {
-      firstExpectedMacT = macT;
-      firstFullCmac = fullCmacHex;
-      firstCounter = candidate.intValue;
-    }
-
-    if (timingSafeEqualStr(receivedMac, macT) || timingSafeEqualStr(receivedMac, fullCmacHex)) {
-      return {
-        isValid: true,
-        expectedMacT: macT,
-        counter: candidate.intValue,
-        fullCmac: fullCmacHex
-      };
-    }
-  }
+  const isValid = timingSafeEqualStr(receivedMac, macT) || timingSafeEqualStr(receivedMac, fullCmacHex);
 
   return {
-    isValid: false,
-    expectedMacT: firstExpectedMacT,
-    counter: firstCounter,
-    fullCmac: firstFullCmac
+    isValid,
+    expectedMacT: macT,
+    counter: parsedCnt.intValue,
+    fullCmac: fullCmacHex
   };
 }

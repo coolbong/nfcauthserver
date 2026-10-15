@@ -37,7 +37,7 @@ server.listen(port, () => {
   console.log(`\n===============================================================`);
   console.log(`🚀 [모바일 인증 화면 로컬 프리뷰 서버 실행 중]`);
   console.log(`👉 브라우저에서 아래 링크를 클릭하여 확인해 보세요:`);
-  console.log(`\n   http://localhost:3000/v1/nfc?uid=04de5f1eacc040&cnt=430000&mac=3C50E92225637D2D\n`);
+  console.log(`\n   http://localhost:3000/v1/nfc?uid=04de5f1eacc040&cnt=000060&mac=96FAD65E40E02794\n`);
   console.log(`   (새로고침을 누르면 '복제 의심 경고' 화면으로 전환됩니다)`);
   console.log(`===============================================================\n`);
 });

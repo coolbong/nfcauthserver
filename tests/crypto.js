@@ -171,9 +171,7 @@ export function buildSV2(uid, counterBytes) {
 }
 
 /**
- * 카운터 파싱 함수: 3바이트(6자리 Hex) 및 6바이트(12자리 Hex) 모두 지원!
- * NTAG 424 DNA 하드웨어 규격(SV2)에서는 3바이트 LSB-first를 사용하므로,
- * 6바이트 카운터가 넘어온 경우 정확한 3바이트 LSB 바이트열을 추출합니다.
+ * 카운터 파싱 함수: 3바이트(6자리 Hex) Big-Endian 지원
  */
 export function parseCounterToLsbBytes(counterInput) {
   if (typeof counterInput === 'number' || typeof counterInput === 'bigint') {
@@ -182,94 +180,54 @@ export function parseCounterToLsbBytes(counterInput) {
     buf.writeUIntLE(num & 0xFFFFFF, 0, 3);
     return {
       lsbBytes: buf,
-      intValue: num,
-      candidates: [
-        { lsb: buf, intValue: num }
-      ]
+      lsb: buf,
+      intValue: num
     };
   }
 
   const cleanHex = counterInput.trim().replace(/^0x/i, '');
-  const candidates = [];
-
-  // Case A: 6자리 Hex (3바이트 카운터)
-  if (cleanHex.length === 6) {
-    // 1) Big-Endian 문자열 (예: "00003D" -> 61)
-    const beInt = parseInt(cleanHex, 16);
-    const lsbFromBe = Buffer.alloc(3);
-    lsbFromBe.writeUIntLE(beInt, 0, 3);
-    candidates.push({ lsb: lsbFromBe, intValue: beInt });
-
-    // 2) Little-Endian 바이트열 (예: "3D0000" -> 61)
-    const rawBytes = Buffer.from(cleanHex, 'hex');
-    const leInt = rawBytes.readUIntLE(0, 3);
-    candidates.push({ lsb: rawBytes, intValue: leInt });
+  if (cleanHex.length !== 6) {
+    throw new Error(`Counter hex must be 6 characters (3 bytes), got: ${cleanHex}`);
   }
-  // Case B: 12자리 Hex (6바이트 카운터)
-  else if (cleanHex.length === 12) {
-    // 1) Big-Endian 6바이트 문자열 (예: "00000000003D" -> 하위 3바이트 "00003D")
-    const last6 = cleanHex.slice(-6);
-    const beInt = parseInt(cleanHex, 16);
-    const lsbFromBe = Buffer.alloc(3);
-    lsbFromBe.writeUIntLE(parseInt(last6, 16), 0, 3);
-    candidates.push({ lsb: lsbFromBe, intValue: beInt });
 
-    // 2) Little-Endian 6바이트 바이트열 (예: "3D0000000000" -> 앞의 3바이트 "3D0000")
-    const rawBytes6 = Buffer.from(cleanHex, 'hex');
-    const lsb3 = rawBytes6.subarray(0, 3);
-    const leInt = rawBytes6.readUIntLE(0, 6);
-    candidates.push({ lsb: lsb3, intValue: leInt });
-  } else {
-    throw new Error(`Counter hex must be 6 or 12 characters (3 or 6 bytes), got: ${cleanHex}`);
+  // Big-Endian 파싱 (예: "00003D" -> 61)
+  const intValue = parseInt(cleanHex, 16);
+  if (isNaN(intValue)) {
+    throw new Error(`Invalid counter hex: ${cleanHex}`);
   }
+
+  // SV2 세션 유도 벡터에 전달할 3바이트 LSB-first 버퍼 생성
+  const lsb = Buffer.alloc(3);
+  lsb.writeUIntLE(intValue & 0xFFFFFF, 0, 3);
 
   return {
-    candidates,
-    intValue: candidates[0].intValue
+    lsbBytes: lsb,
+    lsb,
+    intValue
   };
 }
 
 /**
- * NTAG 424 DNA SDMMAC 검증 함수 (3바이트 & 6바이트 카운터 완벽 지원)
+ * NTAG 424 DNA SDMMAC 검증 함수 (3바이트 Big-Endian 카운터 규격)
  */
 export function verifyNtag424Mac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
   const uid = hexToBytes(uidHex);
   const fileReadKey = hexToBytes(fileReadKeyHex);
   const parsedCnt = parseCounterToLsbBytes(cntHex);
-  const receivedMac = macHex.trim().toUpperCase();
+  const receivedMac = (macHex || '').trim().toUpperCase();
 
-  let firstExpectedMacT = '';
-  let firstFullCmac = '';
-  let firstCounter = parsedCnt.intValue;
+  const sv2 = buildSV2(uid, parsedCnt.lsb);
+  const sessionMacKey = calculateAes128Cmac(fileReadKey, sv2);
+  const fullCmac = calculateAes128Cmac(sessionMacKey, Buffer.alloc(0));
+  const macT = bytesToHex(truncateMac(fullCmac));
+  const fullCmacHex = bytesToHex(fullCmac);
 
-  for (let i = 0; i < parsedCnt.candidates.length; i++) {
-    const candidate = parsedCnt.candidates[i];
-    const sv2 = buildSV2(uid, candidate.lsb);
-    const sessionMacKey = calculateAes128Cmac(fileReadKey, sv2);
-    const fullCmac = calculateAes128Cmac(sessionMacKey, Buffer.alloc(0));
-    const macT = bytesToHex(truncateMac(fullCmac));
-    const fullCmacHex = bytesToHex(fullCmac);
-
-    if (i === 0) {
-      firstExpectedMacT = macT;
-      firstFullCmac = fullCmacHex;
-      firstCounter = candidate.intValue;
-    }
-
-    if (timingSafeEqualStr(receivedMac, macT) || timingSafeEqualStr(receivedMac, fullCmacHex)) {
-      return {
-        isValid: true,
-        expectedMacT: macT,
-        counter: candidate.intValue,
-        fullCmac: fullCmacHex
-      };
-    }
-  }
+  const isValid = timingSafeEqualStr(receivedMac, macT) || timingSafeEqualStr(receivedMac, fullCmacHex);
 
   return {
-    isValid: false,
-    expectedMacT: firstExpectedMacT,
-    counter: firstCounter,
-    fullCmac: firstFullCmac
+    isValid,
+    expectedMacT: macT,
+    counter: parsedCnt.intValue,
+    fullCmac: fullCmacHex
   };
 }

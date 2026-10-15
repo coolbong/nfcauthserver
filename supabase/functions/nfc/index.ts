@@ -113,10 +113,10 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // 3바이트(6자리 Hex) 또는 6바이트(12자리 Hex) 모두 지원
-  if (!/^[0-9a-f]{6}$/i.test(cnt) && !/^[0-9a-f]{12}$/i.test(cnt)) {
+  // 3바이트(6자리 Hex) 카운터 필수 검사
+  if (!/^[0-9a-f]{6}$/i.test(cnt)) {
     return sendResponse(400, 'BAD_REQUEST', {
-      message: '카운터 형식이 올바르지 않습니다 (6자리 또는 12자리 Hex 필요).'
+      message: '카운터 형식이 올바르지 않습니다 (6자리 Hex / 3바이트 필요).'
     });
   }
 

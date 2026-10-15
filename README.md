@@ -63,13 +63,13 @@ NXP **NTAG 424 DNA** 태그의 **SDM / SUN (Secure Unique NFC Message)** 프로�
 
 스마트폰으로 태그를 탭했을 때 전송되는 URL 구조:
 ```text
-https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00000000003D&mac=94EED9EE65337086&kid=1
+https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00003D&mac=94EED9EE65337086&kid=1
 ```
 
 | 파라미터 | 필수 여부 | 형식 및 길이 | 상세 설명 |
 | :--- | :---: | :--- | :--- |
 | **`uid`** | **필수** | **14자리 Hex** (7 Bytes) | NTAG 424 DNA 고유 하드웨어 일련번호 (예: `04de5f1eacc040`) |
-| **`cnt`** | **필수** | **12자리 Hex** (6 Bytes)<br/>*(6자리 Hex도 호환)* | 탭할 때마다 1씩 증가하는 카운터 (Big/Little Endian 자동 판별) |
+| **`cnt`** | **필수** | **6자리 Hex** (3 Bytes) | 탭할 때마다 1씩 증가하는 Big-Endian 카운터 (예: `000001`, `00003D`) |
 | **`mac`** | **필수** | **16자리 Hex** (8 Bytes)<br/>*(32자리 Hex도 호환)* | 칩 내부에서 계산된 8바이트 Truncated CMAC (`MACt`) |
 | **`kid`** | **선택** | **정수 (Integer)** | 사용할 암호화 키 번호 (기본값: `1`) |
 
@@ -79,17 +79,17 @@ https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00000000003D&ma
 
 ### 3.1 브라우저 실시간 테스트 (GitHub Pages)
 1. **정품 인증 성공 화면**:  
-   👉 [정품 인증 성공 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000000600000&mac=E8B99226E83DD2C9)
+   👉 [정품 인증 성공 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000060&mac=96FAD65E40E02794)
 2. **복제 의심 경고 화면 (리플레이 공격 차단)**:  
    👉 위 성공 링크를 연 상태에서 **새로고침(F5)**을 누르면, 동일 카운터 재전송을 감지하여 즉시 복제 경고 표시.
 3. **위조품 경고 화면 (암호 서명 불일치)**:  
-   👉 [위조품 경고 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000000610000&mac=0000000000000000)
+   👉 [위조품 경고 링크 열기](https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000061&mac=0000000000000000)
 
 ### 3.2 로컬 단위 테스트 (NXP AN12196 공식 테스트 벡터 검증)
 ```bash
 node tests/test_runner.js
 ```
-👉 NXP 공식 문서의 테스트 벡터, KEK 암복호화, 3바이트/6바이트 카운터 연산 100% 통과 확인.
+👉 NXP 공식 문서의 테스트 벡터, KEK 암복호화, 3바이트 카운터 연산 100% 통과 확인.
 
 ### 3.3 로컬 프리뷰 서버 실행
 ```bash

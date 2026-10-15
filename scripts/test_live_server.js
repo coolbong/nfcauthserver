@@ -8,8 +8,8 @@ const plainKey = '00000000000000000000000000000000';
 console.log('🌐 [배포된 Supabase 실서버 End-to-End 전체 테스트 시작]\n');
 
 async function testLive() {
-  // 현재 DB의 last_counter보다 큰 새 카운터(예: cnt=65 -> 0x000041 -> Little-Endian '410000')로 정품 인증 테스트
-  const nextCntHex = '410000'; // decimal 65
+  // 현재 DB의 last_counter보다 큰 새 카운터(예: cnt=65 -> Big-Endian '000041')로 정품 인증 테스트
+  const nextCntHex = '000041'; // decimal 65
   const cryptoSuccess = verifyNtag424Mac({
     uidHex: uid,
     cntHex: nextCntHex,
@@ -33,13 +33,13 @@ async function testLive() {
 
   // 3. [위조 MAC 탐지 테스트]
   console.log('\n3. [위조 MAC 탐지 테스트] 잘못된 MAC 전송');
-  const res3 = await fetch(`${baseUrl}?uid=${uid}&cnt=420000&mac=0000000000000000&format=json`);
+  const res3 = await fetch(`${baseUrl}?uid=${uid}&cnt=000042&mac=0000000000000000&format=json`);
   const data3 = await res3.json();
   console.log('  HTTP 상태코드:', res3.status);
   console.log('  응답 데이터:', JSON.stringify(data3, null, 2));
 
   // 4. [모바일 HTML UI 렌더링 테스트]
-  const cntHtml = '430000'; // decimal 67
+  const cntHtml = '000043'; // decimal 67
   const cryptoHtml = verifyNtag424Mac({
     uidHex: uid,
     cntHex: cntHtml,
