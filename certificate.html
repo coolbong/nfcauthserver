@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>디지털 정품 보증서 - NFC Authentication</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #090d16;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .cert-wrapper {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* 상단 네비게이션 버튼 (인쇄, 뒤로가기) */
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+    .nav-btn.primary {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0f172a;
+      border: none;
+      font-weight: 600;
+    }
+    .nav-btn.primary:hover {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    /* 메인 인증서 카드 */
+    .cert-card {
+      background: linear-gradient(180deg, #131b2e 0%, #0c1220 100%);
+      border-radius: 20px;
+      padding: 36px 28px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(245, 158, 11, 0.08);
+      position: relative;
+      overflow: hidden;
+      border: 2px solid #b45309;
+      outline: 1px solid rgba(245, 158, 11, 0.5);
+      outline-offset: -8px;
+    }
+
+    /* 코너 장식 (모서리 금장 무늬) */
+    .corner-decor {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: #fbbf24;
+      pointer-events: none;
+    }
+    .corner-tl { top: 14px; left: 14px; border-top: 2px solid #fbbf24; border-left: 2px solid #fbbf24; }
+    .corner-tr { top: 14px; right: 14px; border-top: 2px solid #fbbf24; border-right: 2px solid #fbbf24; }
+    .corner-bl { bottom: 14px; left: 14px; border-bottom: 2px solid #fbbf24; border-left: 2px solid #fbbf24; }
+    .corner-br { bottom: 14px; right: 14px; border-bottom: 2px solid #fbbf24; border-right: 2px solid #fbbf24; }
+
+    /* 워터마크 배경 */
+    .cert-watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: rgba(255, 255, 255, 0.02);
+      white-space: nowrap;
+      pointer-events: none;
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    /* 인증서 상단 헤더 */
+    .cert-header {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      margin-bottom: 24px;
+    }
+    .cert-emblem {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 14px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, rgba(245, 158, 11, 0.05) 70%, transparent 100%);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .cert-emblem svg {
+      width: 40px;
+      height: 40px;
+      fill: none;
+      stroke: #fbbf24;
+    }
+
+    .cert-title-eng {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .cert-title-kor {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .cert-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+    }
+
+    /* 인증서 번호 및 상태 뱃지 */
+    .cert-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      z-index: 1;
+    }
+    .cert-num {
+      font-size: 12px;
+      color: #cbd5e1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .cert-num strong {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .status-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* 제품 상세 정보 테이블 */
+    .spec-section {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 14px;
+      padding: 16px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .spec-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fbbf24;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+    }
+    .spec-row:last-child {
+      border-bottom: none;
+    }
+    .spec-label {
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .spec-val {
+      color: #f8fafc;
+      font-weight: 600;
+      text-align: right;
+    }
+    .spec-val.mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #38bdf8;
+      font-size: 12px;
+    }
+
+    /* 보증 선언 및 보증 기간 */
+    .warranty-section {
+      background: rgba(245, 158, 11, 0.04);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .warranty-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .warranty-text {
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .warranty-period-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    .warranty-period-val {
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    /* 하단 인장 및 서명 영역 */
+    .cert-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      position: relative;
+      z-index: 1;
+      padding-top: 10px;
+      gap: 16px;
+    }
+
+    /* 공식 금박 도장 (Official Seal) */
+    .seal-wrapper {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      flex-shrink: 0;
+    }
+    .seal-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+
+    /* 전자 서명 및 바코드 */
+    .signature-wrapper {
+      flex-grow: 1;
+      text-align: right;
+    }
+    .barcode-svg {
+      width: 150px;
+      height: 32px;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+    .sign-title {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 2px;
+    }
+    .sign-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+      font-style: italic;
+      letter-spacing: 0.5px;
+    }
+    .sign-auth {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    /* 인쇄 전용 스타일 */
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+        padding: 0;
+      }
+      .top-actions {
+        display: none !important;
+      }
+      .cert-card {
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        border: 2px solid #b45309 !important;
+        outline: 1px solid #d97706 !important;
+        page-break-inside: avoid;
+      }
+      .cert-title-eng {
+        background: none !important;
+        -webkit-text-fill-color: #b45309 !important;
+        color: #b45309 !important;
+      }
+      .cert-title-kor, .spec-val, .sign-name {
+        color: #000000 !important;
+      }
+      .spec-section, .cert-meta-bar {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .spec-label, .cert-num, .warranty-text, .sign-title {
+        color: #475569 !important;
+      }
+      .warranty-section {
+        background: #fffbeb !important;
+        border: 1px solid #fde68a !important;
+      }
+      .warranty-period-box {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="cert-wrapper">
+    <!-- 상단 툴바 -->
+    <div class="top-actions">
+      <a href="index.html" class="nav-btn" id="backBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>인증 화면으로</span>
+      </a>
+      <button onclick="window.print()" class="nav-btn primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        <span>보증서 인쇄 / PDF 저장</span>
+      </button>
+    </div>
+
+    <!-- 정품 보증서 카드 -->
+    <div class="cert-card" id="certCard">
+      <!-- 코너 장식 -->
+      <div class="corner-decor corner-tl"></div>
+      <div class="corner-decor corner-tr"></div>
+      <div class="corner-decor corner-bl"></div>
+      <div class="corner-decor corner-br"></div>
+
+      <!-- 배경 워터마크 -->
+      <div class="cert-watermark">AUTHENTIC &amp; CERTIFIED</div>
+
+      <!-- 헤더 -->
+      <div class="cert-header">
+        <div class="cert-emblem">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="M9 12l2 2 4-4"></path>
+          </svg>
+        </div>
+        <div class="cert-title-eng">Certificate of Authenticity</div>
+        <h1 class="cert-title-kor">디지털 정품 보증서</h1>
+        <p class="cert-subtitle">Official Digital Warranty &amp; Cryptographic Security Record</p>
+      </div>
+
+      <!-- 메타 바 -->
+      <div class="cert-meta-bar">
+        <div class="cert-num">
+          문서번호: <strong id="docNumber">CERT-2026-04DE5F1E</strong>
+        </div>
+        <div class="status-badge" id="certStatus">
+          정품 보증 유효
+        </div>
+      </div>
+
+      <!-- 제품 상세 스펙 -->
+      <div class="spec-section">
+        <div class="spec-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span>제품 사양 및 보안 식별 정보</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">제품명</span>
+          <span class="spec-val" id="specName">NFC 보안 인증 정품 태그</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">브랜드</span>
+          <span class="spec-val" id="specBrand">NFC Authentication</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">모델명</span>
+          <span class="spec-val" id="specModel">NFC-AUTH-PoC (Dynamic Edition)</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">시리얼 번호</span>
+          <span class="spec-val mono" id="specSerial">NFC-AUTH-0001</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">하드웨어 칩 UID</span>
+          <span class="spec-val mono" id="specUid">04:DE:5F:1E:AC:C0:40</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">보안 탭 카운터</span>
+          <span class="spec-val" id="specCounter" style="color: #fbbf24;">#1 (Dynamic CMAC Verified)</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">인증 알고리즘</span>
+          <span class="spec-val" style="font-size: 12px; color: #94a3b8;">AES-128 CMAC (ISO/IEC 9797-1)</span>
+        </div>
+      </div>
+
+      <!-- 보증 내용 -->
+      <div class="warranty-section">
+        <div class="warranty-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>공식 품질 보증 규정</span>
+        </div>
+        <p class="warranty-text">
+          본 인증서는 위조 방지 고유 보안 IC 칩과 실시간 암호화 서명이 탑재된 제품임을 보증합니다. 인증된 제품에 한하여 아래 보증 기간 동안 품질 및 보안 무결성을 보증합니다.
+        </p>
+        <div class="warranty-period-box">
+          <span style="color: #94a3b8;">무상 보증 기간</span>
+          <span class="warranty-period-val" id="warrantyPeriod">발급일로부터 2년 (2028-10-15 까지)</span>
+        </div>
+      </div>
+
+      <!-- 하단 인장 및 서명 -->
+      <div class="cert-footer">
+        <!-- 원형 금박 인장 -->
+        <div class="seal-wrapper">
+          <svg class="seal-svg" viewBox="0 0 100 100">
+            <defs>
+              <radialGradient id="sealGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="60%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#b45309" />
+              </radialGradient>
+              <path id="textCircleTop" d="M 18,50 A 32,32 0 1,1 82,50" />
+              <path id="textCircleBottom" d="M 82,50 A 32,32 0 1,1 18,50" />
+            </defs>
+            <!-- 톱니 별 모양 테두리 -->
+            <circle cx="50" cy="50" r="46" fill="url(#sealGrad)" stroke="#fef08a" stroke-width="1.5" />
+            <circle cx="50" cy="50" r="39" fill="none" stroke="#78350f" stroke-width="1" stroke-dasharray="2,2" />
+            <circle cx="50" cy="50" r="36" fill="#1e293b" />
+            <!-- 중앙 아이콘 -->
+            <g transform="translate(36, 32)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </g>
+            <text x="50" y="70" font-size="7" font-weight="900" fill="#fef08a" text-anchor="middle" letter-spacing="1">GENUINE</text>
+            <text font-size="5" font-weight="700" fill="#fef08a" letter-spacing="1">
+              <textPath href="#textCircleTop" startOffset="50%" text-anchor="middle">OFFICIAL AUTHENTIC</textPath>
+            </text>
+            <text font-size="4.5" font-weight="700" fill="#fef08a" letter-spacing="1">
+              <textPath href="#textCircleBottom" startOffset="50%" text-anchor="middle">★ NFC SECURITY CERTIFIED ★</textPath>
+            </text>
+          </svg>
+        </div>
+
+        <!-- 바코드 및 서명 -->
+        <div class="signature-wrapper">
+          <svg class="barcode-svg" viewBox="0 0 140 30" preserveAspectRatio="none">
+            <rect x="0" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="5" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="8" y="0" width="4" height="30" fill="#cbd5e1" />
+            <rect x="14" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="18" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="22" y="0" width="5" height="30" fill="#cbd5e1" />
+            <rect x="29" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="34" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="39" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="42" y="0" width="4" height="30" fill="#cbd5e1" />
+            <rect x="48" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="52" y="0" width="5" height="30" fill="#cbd5e1" />
+            <rect x="60" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="63" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="68" y="0" width="4" height="30" fill="#cbd5e1" />
+            <rect x="74" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="78" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="82" y="0" width="5" height="30" fill="#cbd5e1" />
+            <rect x="90" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="95" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="99" y="0" width="4" height="30" fill="#cbd5e1" />
+            <rect x="105" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="108" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="113" y="0" width="5" height="30" fill="#cbd5e1" />
+            <rect x="120" y="0" width="2" height="30" fill="#cbd5e1" />
+            <rect x="124" y="0" width="4" height="30" fill="#cbd5e1" />
+            <rect x="130" y="0" width="1" height="30" fill="#cbd5e1" />
+            <rect x="133" y="0" width="3" height="30" fill="#cbd5e1" />
+            <rect x="138" y="0" width="2" height="30" fill="#cbd5e1" />
+          </svg>
+          <div class="sign-title">보안 인증 책임관 (Digital Signature)</div>
+          <div class="sign-name">NFC Security Authority</div>
+          <div class="sign-auth">Cryptographic Certificate Validation Team</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL 파라미터 또는 세션 데이터로 인증서 내용 채우기
+    const params = new URLSearchParams(window.location.search);
+    const uid = (params.get('uid') || '04de5f1eacc040').toUpperCase();
+    const cnt = params.get('cnt') || '1';
+    const brand = params.get('brand') || 'NFC Authentication';
+    const model = params.get('model') || 'NFC-AUTH-PoC';
+    const serial = params.get('serial') || 'NFC-AUTH-0001';
+    const name = params.get('name') || 'NFC 보안 인증 정품 태그';
+
+    // 포맷팅 적용
+    const formattedUid = uid.match(/.{1,2}/g)?.join(':') || uid;
+    const docSuffix = uid.replace(/[^0-9A-F]/g, '').slice(-8);
+
+    document.getElementById('docNumber').textContent = `CERT-2026-${docSuffix}`;
+    document.getElementById('specName').textContent = name;
+    document.getElementById('specBrand').textContent = brand;
+    document.getElementById('specModel').textContent = model;
+    document.getElementById('specSerial').textContent = serial;
+    document.getElementById('specUid').textContent = formattedUid;
+    document.getElementById('specCounter').textContent = `#${cnt} (Dynamic CMAC Verified)`;
+
+    // 보증 기간 계산 (오늘부터 2년)
+    const now = new Date();
+    const exp = new Date(now.getFullYear() + 2, now.getMonth(), now.getDate());
+    const expStr = `${exp.getFullYear()}-${String(exp.getMonth() + 1).padStart(2, '0')}-${String(exp.getDate()).padStart(2, '0')}`;
+    document.getElementById('warrantyPeriod').textContent = `발급일로부터 2년 (${expStr} 까지)`;
+
+    // 뒤로가기 링크 유지
+    const backBtn = document.getElementById('backBtn');
+    if (window.history.length > 1) {
+      backBtn.onclick = (e) => {
+        e.preventDefault();
+        window.history.back();
+      };
+    } else {
+      backBtn.href = `index.html?uid=${uid.toLowerCase()}&cnt=000001&mac=verified`;
+    }
+  </script>
+</body>
+</html>
