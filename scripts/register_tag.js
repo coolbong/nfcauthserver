@@ -1,6 +1,23 @@
 // scripts/register_tag.js
 // 새로운 NFC 스마트카드를 Supabase 데이터베이스에 등록하거나 카운터를 초기화하는 CLI 도구
 import process from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// .env 파일 자동 로드
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile();
+  } else if (fs.existsSync('.env')) {
+    const lines = fs.readFileSync('.env', 'utf-8').split('\n');
+    for (const line of lines) {
+      const match = line.trim().match(/^([^=]+)=(.*)$/);
+      if (match && !process.env[match[1].trim()]) {
+        process.env[match[1].trim()] = match[2].trim();
+      }
+    }
+  }
+} catch (_) {}
 
 const SUPABASE_PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'jklfqmbaubvnbrbuhzak';
 const SUPABASE_ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
