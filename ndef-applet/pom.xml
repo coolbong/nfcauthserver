@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.openjavacard.ndef.advanced</groupId>
+    <artifactId>ndef-applet</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <name>Ndef Applet</name>
+    <description>ndef applet</description>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- 1. 스마트카드 스위트 공식 BOM 가져오기 (공용 모듈 버전 중앙 관리) -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.ubivelox.smartcard</groupId>
+                <artifactId>smartcard-bom</artifactId>
+                <version>2026.1.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- 2. 공용 모듈 참조 (버전 번호 없이 선언!) -->
+    <dependencies>
+        <!-- Java Card 런타임 프레임워크 (javacard.framework.*, javacard.security.* 제공) -->
+        <dependency>
+            <groupId>com.ubivelox.javacard</groupId>
+            <artifactId>jcre</artifactId>
+        </dependency>
+
+        <!-- 스마트카드 테스트 러너 & 가상 시뮬레이터 (단위 테스트용) -->
+        <dependency>
+            <groupId>com.ubivelox</groupId>
+            <artifactId>jubct</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- 단위 테스트 프레임워크 -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

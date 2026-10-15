@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="NDEF Applet" default="all" basedir="..">
+
+  <property name="VERSION_MAJOR" value="1"/>
+  <property name="VERSION_MINOR" value="0"/>
+  <property name="SDK_BASE" value="tools/sdk"/>
+  <property name="BUILD_SDK" value="${SDK_BASE}/jc310"/>
+  <property name="TARGET_SDK" value="${SDK_BASE}/jc304"/>
+
+  <property name="build.version" value="${VERSION_MAJOR}.${VERSION_MINOR}"/>
+  <property name="build.sourcepath" value="src/main/java"/>
+  <property name="build.outputpath" value="build/bin"/>
+  <property name="build.outputfile" value="ndef-applet.cap"/>
+  <property name="build.outputfile_debug" value="ndef-applet-DEBUG.cap"/>
+
+  <target name="clean">
+    <delete dir="${build.outputpath}"/>
+  </target>
+
+  <target name="compile" depends="clean">
+    <mkdir dir="${build.outputpath}" />
+    <taskdef name="javacard" classname="pro.javacard.ant.JavaCard" classpath="tools/ant-javacard.jar"/>
+    <javacard jckit="${BUILD_SDK}">
+      <cap targetsdk="${TARGET_SDK}" aid="D27600008501" output="${build.outputpath}/${build.outputfile}" sources="${build.sourcepath}" version="${build.version}">
+        <applet class="org.openjavacard.ndef.advanced.NdefApplet" aid="D2760000850101"/>
+      </cap>
+      <cap debug="true" targetsdk="${TARGET_SDK}" aid="D27600008501" output="${build.outputpath}/${build.outputfile_debug}" sources="${build.sourcepath}" version="${build.version}">
+        <applet class="org.openjavacard.ndef.advanced.NdefApplet" aid="D2760000850101"/>
+      </cap>
+    </javacard>
+  </target>
+
+  <target name="all" depends="clean,compile"/>
+  
+</project>
