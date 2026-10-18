@@ -80,7 +80,7 @@ build_and_install.cmd
 ### 2) 서버 DB 카운터 0으로 초기화
 설치가 완료되면 프로젝트 루트 폴더에서 아래 명령어를 한 줄 실행합니다:
 ```bash
-node scripts/register_tag.js 04de5f1eacc040 --reset
+node scripts/register_tag.js 04DE5F1EACC040 --reset
 ```
 
 이제 스마트폰으로 카드를 태깅하시면 **정품 인증 완료** 및 **디지털 정품 보증서**가 정상 작동합니다!
@@ -100,7 +100,7 @@ node scripts/register_tag.js 04de5f1eacc040 --reset
 
 ```java
     /**
-     * NFC Authentication UID (7 bytes, registered in database: 04de5f1eacc040)
+     * NFC Authentication UID (7 bytes, registered in database: 04DE5F1EACC040)
      */
     private static final byte[] CARD_UID = {
         (byte)0x04, (byte)0xDE, (byte)0x5F, (byte)0x1E, (byte)0xAC, (byte)0xC0, (byte)0x40

@@ -8,7 +8,7 @@ object NdefUrlParser {
     /**
      * NDEF URL 문자열로부터 uid, cnt, mac, kid 파라미터를 추출합니다.
      * 지원 형식:
-     * - https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00003D&mac=94EED9EE65337086&kid=1
+     * - https://coolbong.github.io/nfcauthserver/?uid=04DE5F1EACC040&cnt=00003D&mac=94EED9EE65337086&kid=1
      * - https://xxx.co/v1/nfc?uid=...&cnt=...&mac=...
      */
     fun parse(rawUrl: String): NfcPayload? {
@@ -36,7 +36,7 @@ object NdefUrlParser {
             }
 
             return NfcPayload(
-                uid = uid.lowercase(),
+                uid = uid.uppercase(),
                 counterHex = cnt.uppercase(),
                 mac = mac.uppercase(),
                 kid = kid,

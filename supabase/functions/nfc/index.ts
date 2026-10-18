@@ -102,8 +102,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const uid = uidRaw.trim().toLowerCase();
-  const cnt = cntRaw.trim();
+  // 모든 Hex 파라미터는 대문자(UPPERCASE) 기준으로 표준화
+  const uid = uidRaw.trim().toUpperCase();
+  const cnt = cntRaw.trim().toUpperCase();
   const mac = macRaw.trim().toUpperCase();
   const urlKeyIndex = kidRaw ? parseInt(kidRaw, 10) : null;
 
@@ -131,7 +132,7 @@ Deno.serve(async (req: Request) => {
     const { data: tag, error: fetchError } = await supabase
       .from('nfc_tags')
       .select('uid, tag_name, key_index, last_counter, status, product_info, total_scans, first_verified_at')
-      .eq('uid', uid)
+      .ilike('uid', uid)
       .maybeSingle();
 
     if (fetchError) {

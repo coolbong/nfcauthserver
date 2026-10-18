@@ -172,17 +172,17 @@ class ScanViewModel(
 
                 // 2. 실제 서버 DB에 등록된 키(00..00)로 유효한 AES-128-CMAC 서명 동적 계산
                 val dynamicMac = CryptoUtil.computeSdmMac(
-                    uidHex = "04de5f1eacc040",
+                    uidHex = "04DE5F1EACC040",
                     counterInt = mockCounter,
                     keyHex = "00000000000000000000000000000000"
                 )
 
                 val payload = NfcPayload(
-                    uid = "04de5f1eacc040",
+                    uid = "04DE5F1EACC040",
                     counterHex = cntHex,
                     mac = dynamicMac,
                     kid = "1",
-                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=$cntHex&mac=$dynamicMac"
+                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04DE5F1EACC040&cnt=$cntHex&mac=$dynamicMac"
                 )
                 verifyPayload(payload, context)
             }
@@ -190,11 +190,11 @@ class ScanViewModel(
                 // 이전 카운터(61, 00003D)와 해당 카운터의 유효 서명(94EED9EE65337086) 전송
                 // 서버에는 이미 높은 카운터가 기록되어 있으므로 COUNTER_REPLAY 차단 감지
                 val payload = NfcPayload(
-                    uid = "04de5f1eacc040",
+                    uid = "04DE5F1EACC040",
                     counterHex = "00003D",
                     mac = "94EED9EE65337086",
                     kid = "1",
-                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=00003D&mac=94EED9EE65337086"
+                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04DE5F1EACC040&cnt=00003D&mac=94EED9EE65337086"
                 )
                 verifyPayload(payload, context)
             }
@@ -203,11 +203,11 @@ class ScanViewModel(
                 val forgedCnt = mockCounter + 1
                 val cntHex = String.format("%06X", forgedCnt)
                 val payload = NfcPayload(
-                    uid = "04de5f1eacc040",
+                    uid = "04DE5F1EACC040",
                     counterHex = cntHex,
                     mac = "0000000000000000",
                     kid = "1",
-                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=$cntHex&mac=0000000000000000"
+                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04DE5F1EACC040&cnt=$cntHex&mac=0000000000000000"
                 )
                 verifyPayload(payload, context)
             }

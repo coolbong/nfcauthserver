@@ -43,13 +43,13 @@ function printHelp() {
 
 예시:
   # 기본 등록:
-  node scripts/register_tag.js 04de5f1eacc040
+  node scripts/register_tag.js 04DE5F1EACC040
 
   # 상세 정보와 함께 새 카드 등록:
   node scripts/register_tag.js 04112233445566 "VIP 고객용 정품 카드" "NFC Secure SmartCard" "SN-VIP-0001"
 
   # 카운터 0으로 리셋:
-  node scripts/register_tag.js 04de5f1eacc040 --reset
+  node scripts/register_tag.js 04DE5F1EACC040 --reset
 =============================================================================
 `);
 }
@@ -60,7 +60,7 @@ if (args.length === 0 || args[0] === '-h' || args[0] === '--help') {
   process.exit(0);
 }
 
-const rawUid = args[0].replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+const rawUid = args[0].replace(/[^0-9a-fA-F]/g, '').toUpperCase();
 if (rawUid.length !== 14) {
   console.error(`❌ 오류: UID는 14자리 16진수(Hex)여야 합니다. (입력값: ${args[0]})`);
   process.exit(1);
@@ -82,14 +82,14 @@ async function run() {
           total_scans = 0,
           first_verified_at = NULL,
           updated_at = NOW()
-      WHERE LOWER(uid) = '${rawUid}';
+      WHERE UPPER(uid) = '${rawUid}';
 
       DELETE FROM public.nfc_scan_logs
-      WHERE LOWER(uid) = '${rawUid}';
+      WHERE UPPER(uid) = '${rawUid}';
 
       SELECT uid, tag_name, key_index, last_counter, total_scans, status
       FROM public.nfc_tags
-      WHERE LOWER(uid) = '${rawUid}';
+      WHERE UPPER(uid) = '${rawUid}';
     `;
   } else {
     query = `

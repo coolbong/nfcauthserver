@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.nfc_keys (
 
 -- 2. NFC 태그 마스터 테이블
 CREATE TABLE IF NOT EXISTS public.nfc_tags (
-    uid VARCHAR(14) PRIMARY KEY,                         -- 7바이트 UID (14 hex chars, 소문자)
+    uid VARCHAR(14) PRIMARY KEY,                         -- 7바이트 UID (14 hex chars, 대문자)
     tag_name VARCHAR(100) NOT NULL,                     -- 제품명 또는 태그 식별 명칭
     key_index INTEGER NOT NULL REFERENCES public.nfc_keys(key_index), -- 사용할 암호화 키 인덱스
     last_counter INTEGER DEFAULT 0 NOT NULL,            -- 마지막 정상 인증 카운터 (리플레이 공격 방지)
@@ -93,19 +93,21 @@ DECLARE
     v_total_scans INTEGER;
     v_first_verified_at TIMESTAMPTZ;
     v_norm_uid VARCHAR(14);
+    v_norm_mac VARCHAR(32);
 BEGIN
-    v_norm_uid := LOWER(TRIM(p_uid));
+    v_norm_uid := UPPER(TRIM(p_uid));
+    v_norm_mac := UPPER(TRIM(p_received_mac));
 
     IF p_is_valid THEN
         SELECT t.last_counter, t.status, t.tag_name, t.product_info, t.total_scans, t.first_verified_at
         INTO v_last_counter, v_status, v_tag_name, v_product_info, v_total_scans, v_first_verified_at
         FROM public.nfc_tags t
-        WHERE LOWER(t.uid) = v_norm_uid
+        WHERE UPPER(t.uid) = v_norm_uid
         FOR UPDATE;
 
         IF NOT FOUND THEN
             INSERT INTO public.nfc_scan_logs (uid, key_index, counter, received_mac, is_valid, result_code, client_ip, user_agent)
-            VALUES (v_norm_uid, p_key_index, p_counter, p_received_mac, false, 'TAG_NOT_FOUND', p_client_ip, p_user_agent);
+            VALUES (v_norm_uid, p_key_index, p_counter, v_norm_mac, false, 'TAG_NOT_FOUND', p_client_ip, p_user_agent);
 
             RETURN QUERY SELECT false, 'TAG_NOT_FOUND'::VARCHAR(50), 0, NULL::TIMESTAMPTZ, NULL::VARCHAR(100), NULL::JSONB;
             RETURN;
@@ -113,7 +115,7 @@ BEGIN
 
         IF v_status <> 'ACTIVE' THEN
             INSERT INTO public.nfc_scan_logs (uid, key_index, counter, received_mac, is_valid, result_code, client_ip, user_agent)
-            VALUES (v_norm_uid, p_key_index, p_counter, p_received_mac, false, 'TAG_INACTIVE', p_client_ip, p_user_agent);
+            VALUES (v_norm_uid, p_key_index, p_counter, v_norm_mac, false, 'TAG_INACTIVE', p_client_ip, p_user_agent);
 
             RETURN QUERY SELECT false, 'TAG_INACTIVE'::VARCHAR(50), v_total_scans, v_first_verified_at, v_tag_name, v_product_info;
             RETURN;
@@ -122,7 +124,7 @@ BEGIN
         -- 카운터 검증: 이전 카운터보다 커야 함 (Replay Attack 방어)
         IF p_counter <= v_last_counter THEN
             INSERT INTO public.nfc_scan_logs (uid, key_index, counter, received_mac, is_valid, result_code, client_ip, user_agent)
-            VALUES (v_norm_uid, p_key_index, p_counter, p_received_mac, false, 'COUNTER_REPLAY', p_client_ip, p_user_agent);
+            VALUES (v_norm_uid, p_key_index, p_counter, v_norm_mac, false, 'COUNTER_REPLAY', p_client_ip, p_user_agent);
 
             RETURN QUERY SELECT false, 'COUNTER_REPLAY'::VARCHAR(50), v_total_scans, v_first_verified_at, v_tag_name, v_product_info;
             RETURN;
@@ -137,16 +139,16 @@ BEGIN
             total_scans = v_total_scans,
             first_verified_at = v_first_verified_at,
             updated_at = NOW()
-        WHERE LOWER(public.nfc_tags.uid) = v_norm_uid;
+        WHERE UPPER(public.nfc_tags.uid) = v_norm_uid;
 
         INSERT INTO public.nfc_scan_logs (uid, key_index, counter, received_mac, is_valid, result_code, client_ip, user_agent)
-        VALUES (v_norm_uid, p_key_index, p_counter, p_received_mac, true, 'SUCCESS', p_client_ip, p_user_agent);
+        VALUES (v_norm_uid, p_key_index, p_counter, v_norm_mac, true, 'SUCCESS', p_client_ip, p_user_agent);
 
         RETURN QUERY SELECT true, 'SUCCESS'::VARCHAR(50), v_total_scans, v_first_verified_at, v_tag_name, v_product_info;
         RETURN;
     ELSE
         INSERT INTO public.nfc_scan_logs (uid, key_index, counter, received_mac, is_valid, result_code, client_ip, user_agent)
-        VALUES (v_norm_uid, p_key_index, p_counter, p_received_mac, false, p_result_code, p_client_ip, p_user_agent);
+        VALUES (v_norm_uid, p_key_index, p_counter, v_norm_mac, false, p_result_code, p_client_ip, p_user_agent);
 
         RETURN QUERY SELECT false, p_result_code::VARCHAR(50), 0, NULL::TIMESTAMPTZ, NULL::VARCHAR(100), NULL::JSONB;
         RETURN;
@@ -173,7 +175,7 @@ SET key_name = EXCLUDED.key_name,
 
 INSERT INTO public.nfc_tags (uid, tag_name, key_index, last_counter, status, product_info)
 VALUES (
-    '04de5f1eacc040',
+    '04DE5F1EACC040',
     'NFC 보안 인증 테스트 태그',
     1,
     0,

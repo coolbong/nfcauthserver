@@ -577,7 +577,7 @@
       <!-- 테스트 샘플 버튼 (파라미터 누락 시에만 표시) -->
       <div class="test-box" id="testBox" style="display: none;">
         <p><strong>💡 파라미터가 없는 상태입니다.</strong><br>아래 테스트 버튼을 눌러 정품 인증 동작을 바로 확인해보세요:</p>
-        <a href="?uid=04de5f1eacc040&cnt=000060&mac=96FAD65E40E02794" class="test-btn">정품 인증 테스트 실행하기</a>
+        <a href="?uid=04DE5F1EACC040&cnt=000060&mac=96FAD65E40E02794" class="test-btn">정품 인증 테스트 실행하기</a>
       </div>
 
       <!-- 푸터 -->
@@ -830,10 +830,13 @@
 
     async function verifyTag() {
       const urlParams = new URLSearchParams(window.location.search);
-      const uid = urlParams.get('uid');
-      const cnt = urlParams.get('cnt') || urlParams.get('ctr');
-      const mac = urlParams.get('mac') || urlParams.get('c');
-      const kid = urlParams.get('kid') || urlParams.get('kno') || '1';
+      const rawUid = urlParams.get('uid');
+      const rawCnt = urlParams.get('cnt') || urlParams.get('ctr');
+      const rawMac = urlParams.get('mac') || urlParams.get('c');
+      const uid = rawUid ? rawUid.trim().toUpperCase() : null;
+      const cnt = rawCnt ? rawCnt.trim().toUpperCase() : null;
+      const mac = rawMac ? rawMac.trim().toUpperCase() : null;
+      const kid = (urlParams.get('kid') || urlParams.get('kno') || '1').trim();
 
       const titleEl = document.getElementById('title');
       const subtitleEl = document.getElementById('subtitle');

@@ -130,7 +130,7 @@ public final class NdefApplet extends Applet {
     };
 
     /**
-     * NFC Authentication UID (7 bytes, registered in database: 04de5f1eacc040)
+     * NFC Authentication UID (7 bytes, registered in database: 04DE5F1EACC040)
      */
     private static final byte[] CARD_UID = {
         (byte)0x04, (byte)0xDE, (byte)0x5F, (byte)0x1E, (byte)0xAC, (byte)0xC0, (byte)0x40

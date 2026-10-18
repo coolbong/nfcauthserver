@@ -49,7 +49,7 @@ ECHO ===========================================================================
 ECHO.
 ECHO Next Steps:
 ECHO   1. Reset DB counter for this card:
-ECHO      node scripts/register_tag.js 04de5f1eacc040 --reset
+ECHO      node scripts/register_tag.js 04DE5F1EACC040 --reset
 ECHO.
 ECHO   2. Tap your smartcard to your smartphone to verify!
 ECHO =============================================================================
