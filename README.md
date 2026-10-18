@@ -114,8 +114,31 @@ node scripts/manage_keys.js encrypt --index 2 --name "2026 가을 신상품 배�
 
 ---
 
-## 📁 5. 프로젝트 문서 목차
+## 📱 5. 안드로이드 정품 인증 데모 앱 (`android/`)
 
+Jetpack Compose 기반의 네이티브 안드로이드 애플리케이션으로, 실제 NFC 태그 탭 시 브라우저 전환 없이 인앱에서 즉시 정품 인증 및 시연을 진행할 수 있습니다.
+
+- **포그라운드 NFC 인터셉트**: `ForegroundDispatch`를 통해 스마트폰에 카드를 태깅하는 즉시 NDEF URL 파라미터 분리 및 검증
+- **3단계 햅틱 & 비주얼 연출**:
+  - 🟢 **정품 완료 (AUTHENTIC)**: 럭셔리 골드/에메랄드 카드 & 2단 성공 진동
+  - 🟠 **복제 경고 (REPLAY)**: 보안 카운터 역전/중복 감지 & 경고 진동
+  - 🔴 **위조 차단 (TAMPERED)**: AES-128-CMAC 서명 불일치 & 3단 에러 진동
+- **디지털 정품 보증서**: 정품 인증 시 네이티브 골드 홀로그램 보증서 모달 열람
+- **기술 인스펙터 시트**: 엔지니어 미팅용 Raw Hex(UID, Counter, CMAC, Key Index) 및 API 응답 지연 시간(ms) 표시
+- **원클릭 가상 시뮬레이터 (Mock Tab)**: 실제 카드가 없거나 IR 발표 시 버튼 하나로 정품/복제/위조 시나리오 즉석 재현
+
+### 빌드 및 실행
+```bash
+cd android
+./gradlew assembleDebug
+```
+- 생성된 APK 위치: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## 📁 6. 프로젝트 문서 목차
+
+- 📱 [docs/ANDROID_DEMO_APP_PLAN.md](docs/ANDROID_DEMO_APP_PLAN.md): **안드로이드 정품 인증 데모 앱 기획서 & 아키텍처 설계서**
 - 💳 [docs/SMARTCARD_ISSUANCE_GUIDE.md](docs/SMARTCARD_ISSUANCE_GUIDE.md): **NFC 스마트카드 신규 발급, JavaCard 빌드 및 카드 설치 가이드**
 - 📘 [docs/NFC_DEVELOPER_GUIDE.md](docs/NFC_DEVELOPER_GUIDE.md): **NFC 개발 및 발급 담당자를 위한 보안 태그 발급 & NDEF 설정 가이드**
 - 📗 [docs/SUPABASE_SETUP_GUIDE.md](docs/SUPABASE_SETUP_GUIDE.md): **Supabase 프로젝트 설정, KEK 환경변수, 배포 및 커스텀 도메인 매핑 가이드**
@@ -125,3 +148,4 @@ node scripts/manage_keys.js encrypt --index 2 --name "2026 가을 신상품 배�
 
 ## 📄 라이선스
 MIT License
+
