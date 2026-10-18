@@ -223,7 +223,12 @@ fun MainAppScaffold(
                             )
                         },
                         selected = selectedTab == tab,
-                        onClick = { onTabSelected(tab) },
+                        onClick = {
+                            if (tab == AppTab.SCANNER) {
+                                viewModel.resetToIdle()
+                            }
+                            onTabSelected(tab)
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = PrimaryBlue,
                             selectedTextColor = PrimaryBlue,

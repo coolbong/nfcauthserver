@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.orca.nfcauth.data.model.NfcPayload
 import com.orca.nfcauth.data.model.VerificationResponse
 import com.orca.nfcauth.data.remote.SupabaseApiClient
+import com.orca.nfcauth.util.CryptoUtil
 import com.orca.nfcauth.util.HapticFeedbackUtil
 import com.orca.nfcauth.util.NdefUrlParser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,8 +47,8 @@ class ScanViewModel(
     private val _history = MutableStateFlow<List<ScanHistoryItem>>(emptyList())
     val history: StateFlow<List<ScanHistoryItem>> = _history.asStateFlow()
 
-    // 가상 시뮬레이터용 카운터
-    private var mockCounter = 0x000070
+    // 가상 시뮬레이터용 카운터 (서버의 현재 카운터보다 큰 값에서 시작)
+    private var mockCounter = 1000
 
     /**
      * NFC 태그 NDEF URL 감지 시 처리
@@ -77,6 +78,14 @@ class ScanViewModel(
             val result = apiClient.verifyTag(payload)
 
             result.onSuccess { response ->
+                response.counter?.let { cnt ->
+                    if (cnt >= mockCounter) {
+                        mockCounter = cnt.toInt()
+                        context.getSharedPreferences("nfc_mock_prefs", Context.MODE_PRIVATE)
+                            .edit().putInt("mock_counter", mockCounter).apply()
+                    }
+                }
+
                 when (response.resultCode) {
                     "SUCCESS" -> {
                         HapticFeedbackUtil.vibrateSuccess(context)
@@ -148,22 +157,38 @@ class ScanViewModel(
      * 시연자용 원클릭 가상 태깅 (Mock Simulation)
      */
     fun triggerMock(type: MockType, context: Context) {
+        val prefs = context.getSharedPreferences("nfc_mock_prefs", Context.MODE_PRIVATE)
+        val savedCounter = prefs.getInt("mock_counter", 1000)
+        if (savedCounter > mockCounter) {
+            mockCounter = savedCounter
+        }
+
         when (type) {
             MockType.AUTHENTIC -> {
+                // 1. 카운터 증가 및 영속화
                 mockCounter += 1
+                prefs.edit().putInt("mock_counter", mockCounter).apply()
                 val cntHex = String.format("%06X", mockCounter)
-                // 실제 서버 키로 계산된 테스트 데이터
+
+                // 2. 실제 서버 DB에 등록된 키(00..00)로 유효한 AES-128-CMAC 서명 동적 계산
+                val dynamicMac = CryptoUtil.computeSdmMac(
+                    uidHex = "04de5f1eacc040",
+                    counterInt = mockCounter,
+                    keyHex = "00000000000000000000000000000000"
+                )
+
                 val payload = NfcPayload(
                     uid = "04de5f1eacc040",
                     counterHex = cntHex,
-                    mac = "94EED9EE65337086", // 데모용
+                    mac = dynamicMac,
                     kid = "1",
-                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=$cntHex&mac=94EED9EE65337086"
+                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=$cntHex&mac=$dynamicMac"
                 )
                 verifyPayload(payload, context)
             }
             MockType.COUNTER_REPLAY -> {
-                // 이전 카운터 재전송
+                // 이전 카운터(61, 00003D)와 해당 카운터의 유효 서명(94EED9EE65337086) 전송
+                // 서버에는 이미 높은 카운터가 기록되어 있으므로 COUNTER_REPLAY 차단 감지
                 val payload = NfcPayload(
                     uid = "04de5f1eacc040",
                     counterHex = "00003D",
@@ -174,12 +199,15 @@ class ScanViewModel(
                 verifyPayload(payload, context)
             }
             MockType.INVALID_MAC -> {
+                // 최신 카운터이지만 서명(CMAC)이 조작된 위조품
+                val forgedCnt = mockCounter + 1
+                val cntHex = String.format("%06X", forgedCnt)
                 val payload = NfcPayload(
                     uid = "04de5f1eacc040",
-                    counterHex = "000099",
+                    counterHex = cntHex,
                     mac = "0000000000000000",
                     kid = "1",
-                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=000099&mac=0000000000000000"
+                    rawUrl = "https://coolbong.github.io/nfcauthserver/?uid=04de5f1eacc040&cnt=$cntHex&mac=0000000000000000"
                 )
                 verifyPayload(payload, context)
             }
