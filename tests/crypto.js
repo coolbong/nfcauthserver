@@ -350,6 +350,9 @@ export function parseAuthTlv(rawHexInput) {
   if (!itemDf63) throw new Error('필수 TLV 태그 DF63 (count)가 누락되었습니다.');
 
   const id = itemDf61.valueHex.toUpperCase();
+  if (id.length !== 32) {
+    throw new Error(`UID(DF61)는 반드시 16바이트(32자리 Hex)여야 합니다. (전달된 길이: ${id.length / 2}바이트)`);
+  }
 
   const cntBytes = hexToBytes(itemDf63.valueHex);
   let counter = 0;

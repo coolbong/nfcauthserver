@@ -40,48 +40,38 @@ for (const exp of rfcExpectedValues) {
 }
 console.log('  ✅ RFC 4226 10개 공식 테스트 벡터 100% 통과!\n');
 
-// 2. BER-TLV (DF61: id, DF62: otp, DF63: count) 인코딩 & 디코딩 테스트
-console.log('2. BER-TLV (DF61: id, DF62: otp, DF63: count) 인코딩 & 디코딩 테스트');
-const sampleUid = '04DE5F1EACC040';
+// 2. BER-TLV (DF61: 16B id, DF62: otp, DF63: count) 인코딩 & 디코딩 테스트
+console.log('2. BER-TLV (DF61: 16B id, DF62: otp, DF63: count) 인코딩 & 디코딩 테스트');
+const sample16BUid = '0102030405060708090A0B0C0D0E0F10';
 const sampleCount = 1;
 const sampleOtp = '287082';
 
 // 2-1. 3바이트 Packed BCD OTP
-const tlvBcd = buildTlvPayload(sampleUid, sampleOtp, sampleCount, 'bcd');
+const tlvBcd = buildTlvPayload(sample16BUid, sampleOtp, sampleCount, 'bcd');
 console.log('  • 생성된 TLV (3B BCD OTP):', tlvBcd);
 const parsedBcd = parseAuthTlv(tlvBcd);
-assert.strictEqual(parsedBcd.id, sampleUid);
+assert.strictEqual(parsedBcd.id, sample16BUid);
 assert.strictEqual(parsedBcd.otp, sampleOtp);
 assert.strictEqual(parsedBcd.counter, sampleCount);
 console.log('  ✅ 3바이트 BCD 포맷 TLV 파싱 성공!');
 
 // 2-2. 6바이트 ASCII 문자열 OTP
-const tlvAscii = buildTlvPayload(sampleUid, sampleOtp, sampleCount, 'ascii');
+const tlvAscii = buildTlvPayload(sample16BUid, sampleOtp, sampleCount, 'ascii');
 console.log('  • 생성된 TLV (ASCII OTP):', tlvAscii);
 const parsedAscii = parseAuthTlv(tlvAscii);
-assert.strictEqual(parsedAscii.id, sampleUid);
+assert.strictEqual(parsedAscii.id, sample16BUid);
 assert.strictEqual(parsedAscii.otp, sampleOtp);
 assert.strictEqual(parsedAscii.counter, sampleCount);
 console.log('  ✅ ASCII 포맷 TLV 파싱 성공!');
 
 // 2-3. 4바이트 Binary OTP
-const tlvBinary = buildTlvPayload(sampleUid, sampleOtp, sampleCount, 'binary');
+const tlvBinary = buildTlvPayload(sample16BUid, sampleOtp, sampleCount, 'binary');
 console.log('  • 생성된 TLV (Binary 4B OTP):', tlvBinary);
 const parsedBinary = parseAuthTlv(tlvBinary);
-assert.strictEqual(parsedBinary.id, sampleUid);
+assert.strictEqual(parsedBinary.id, sample16BUid);
 assert.strictEqual(parsedBinary.otp, sampleOtp);
 assert.strictEqual(parsedBinary.counter, sampleCount);
-console.log('  ✅ Binary 정수 포맷 TLV 파싱 성공!');
-
-// 2-4. 16바이트 UID + 3바이트 BCD OTP
-const sample16BUid = '0102030405060708090A0B0C0D0E0F10';
-const tlv16B = buildTlvPayload(sample16BUid, sampleOtp, sampleCount, 'bcd');
-console.log('  • 생성된 16B UID + BCD OTP TLV:', tlv16B);
-const parsed16B = parseAuthTlv(tlv16B);
-assert.strictEqual(parsed16B.id, sample16BUid);
-assert.strictEqual(parsed16B.otp, sampleOtp);
-assert.strictEqual(parsed16B.counter, sampleCount);
-console.log('  ✅ 16바이트 UID + 3바이트 BCD OTP 스마트카드 TLV 파싱 성공!\n');
+console.log('  ✅ Binary 정수 포맷 TLV 파싱 성공!\n');
 
 // 3. DB 키(AES-128 대칭키 16B) 기반 HOTP 엔드투엔드 검증
 console.log('3. DB 키(AES-128 대칭키 16B) 기반 HOTP 엔드투엔드 검증');
@@ -95,7 +85,7 @@ const testCounter = 1001;
 const hotp1001 = calculateHotp(hexToBytes(decryptedKeyHex), testCounter, 6);
 console.log('  • 카운터 #1001 HOTP:', hotp1001.otp6);
 
-const dynamicTlv = buildTlvPayload(sampleUid, hotp1001.otp6, testCounter, 'ascii');
+const dynamicTlv = buildTlvPayload(sample16BUid, hotp1001.otp6, testCounter, 'ascii');
 console.log('  • 전송할 단일 TLV 페이로드:', dynamicTlv);
 
 const authResult = verifyHotp(hexToBytes(decryptedKeyHex), testCounter, hotp1001.otp6);
@@ -110,16 +100,16 @@ console.log('  ✅ 위조된 OTP 차단 확인 (INVALID_OTP 정상 동작)!\n');
 
 // 5. 카운터 길이 호환성 테스트 (1B, 2B, 3B, 4B)
 console.log('5. 카운터 길이 호환성 테스트 (1B, 2B, 3B, 4B)');
-const tlv1B = 'DF610704DE5F1EACC040DF6206313233343536DF63013D'; // cnt = 61
+const tlv1B = 'DF61100102030405060708090A0B0C0D0E0F10DF6206313233343536DF63013D'; // cnt = 61
 assert.strictEqual(parseAuthTlv(tlv1B).counter, 61);
 
-const tlv2B = 'DF610704DE5F1EACC040DF6206313233343536DF6302003D'; // cnt = 61
+const tlv2B = 'DF61100102030405060708090A0B0C0D0E0F10DF6206313233343536DF6302003D'; // cnt = 61
 assert.strictEqual(parseAuthTlv(tlv2B).counter, 61);
 
-const tlv3B = 'DF610704DE5F1EACC040DF6206313233343536DF63030003E9'; // cnt = 1001
+const tlv3B = 'DF61100102030405060708090A0B0C0D0E0F10DF6206313233343536DF63030003E9'; // cnt = 1001
 assert.strictEqual(parseAuthTlv(tlv3B).counter, 1001);
 
-const tlv4B = 'DF610704DE5F1EACC040DF6206313233343536DF6304000003EA'; // cnt = 1002
+const tlv4B = 'DF61100102030405060708090A0B0C0D0E0F10DF6206313233343536DF6304000003EA'; // cnt = 1002
 assert.strictEqual(parseAuthTlv(tlv4B).counter, 1002);
 console.log('  ✅ 1B, 2B, 3B, 4B 카운터 길이 디코딩 100% 호환 확인!\n');
 
@@ -142,6 +132,15 @@ assert.strictEqual(parsed20B.counter, 0);
 const verify20Result = verifyHotp(hexToBytes(dec20), 0, '858575');
 assert.strictEqual(verify20Result.isValid, true);
 console.log('  ✅ 20바이트 키 암복호화 및 HOTP (#0 = 858575) 100% 검증 통과!\n');
+
+// 7. 16바이트가 아닌 규격 외 UID (예: 7바이트) 차단 테스트
+console.log('7. 16바이트 규격 외 UID (예: 7바이트) 엄격 차단 테스트');
+assert.throws(() => {
+  parseAuthTlv('DF610704DE5F1EACC040DF6203328482DF6303000000');
+}, (err) => {
+  return err.message.includes('16바이트(32자리 Hex)');
+});
+console.log('  ✅ 16바이트 미만(7바이트 등) 규격 외 UID 즉시 차단(Bad Request) 확인!\n');
 
 console.log('🎉 ===============================================================');
 console.log('🎉 [BER-TLV + HOTP (RFC 4226) 모든 단위 테스트 100% 통과!]');

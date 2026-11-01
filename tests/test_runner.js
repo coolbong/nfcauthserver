@@ -106,9 +106,9 @@ const hotp1 = calculateHotp(rfcSecret, 1, 6);
 assert.strictEqual(hotp1.otp6, '287082');
 console.log('  ✅ RFC 4226 공식 테스트 벡터 (C=0 -> 755224, C=1 -> 287082) 통과!');
 
-const tlvPayload = buildTlvPayload('04DE5F1EACC040', hotp1.otp6, 1, 'ascii');
+const tlvPayload = buildTlvPayload('0102030405060708090A0B0C0D0E0F10', hotp1.otp6, 1, 'ascii');
 const tlvParsed = parseAuthTlv(tlvPayload);
-assert.strictEqual(tlvParsed.id, '04DE5F1EACC040');
+assert.strictEqual(tlvParsed.id, '0102030405060708090A0B0C0D0E0F10');
 assert.strictEqual(tlvParsed.otp, '287082');
 assert.strictEqual(tlvParsed.counter, 1);
 const tlvVerified = verifyHotp(rfcSecret, tlvParsed.counter, tlvParsed.otp);

@@ -198,8 +198,11 @@ export function parseAuthTlv(rawHexInput: string): ParsedAuthPayload {
     throw new Error('필수 TLV 태그 DF63 (count)가 누락되었습니다.');
   }
 
-  // 1. ID 해석 (DF61): 고유 식별자 (대문자 Hex)
+  // 1. ID 해석 (DF61): 16바이트 고유 식별자 (32자리 대문자 Hex)
   const id = itemDf61.valueHex.toUpperCase();
+  if (id.length !== 32) {
+    throw new Error(`UID(DF61)는 반드시 16바이트(32자리 Hex)여야 합니다. (전달된 길이: ${id.length / 2}바이트)`);
+  }
 
   // 2. 카운터 해석 (DF63): Big-Endian 정수 또는 ASCII 정수
   const cntBytes = hexToBytes(itemDf63.valueHex);
