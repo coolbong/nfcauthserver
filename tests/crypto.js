@@ -278,6 +278,9 @@ export function verifyHotp(keyBytes, counter, receivedOtp) {
 
 export function parseBerTlv(rawHexInput) {
   const cleanHex = rawHexInput.trim().replace(/^0x/i, '').replace(/\s+/g, '');
+  if (!/^[0-9A-Fa-f]+$/.test(cleanHex)) {
+    throw new Error('유효한 Hex 문자열이 아닙니다.');
+  }
   if (cleanHex.length < 4) {
     throw new Error('TLV 데이터 길이가 너무 짧습니다.');
   }

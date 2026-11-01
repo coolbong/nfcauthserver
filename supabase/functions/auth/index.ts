@@ -114,6 +114,7 @@ Deno.serve(async (req: Request) => {
       // 파라미터 키를 지정하지 않고 ?DF61... 형태로 넘겨진 경우
       if (!rawTlv) {
         for (const [key, value] of url.searchParams.entries()) {
+          if (key.toLowerCase() === 'format') continue;
           if (key.toUpperCase().startsWith('DF61') || key.toUpperCase().includes('DF61')) {
             rawTlv = key;
             break;
@@ -124,11 +125,17 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // 첫 번째 쿼리 파라미터가 있을 경우 fallback
-      if (!rawTlv && url.searchParams.size > 0) {
-        const firstEntry = url.searchParams.entries().next().value;
-        if (firstEntry) {
-          rawTlv = firstEntry[1] || firstEntry[0];
+      // format 파라미터 이외의 다른 단일 파라미터가 있을 경우 fallback
+      if (!rawTlv) {
+        for (const [key, value] of url.searchParams.entries()) {
+          if (key.toLowerCase() === 'format') continue;
+          if (value && /^[0-9A-Fa-f]{6,}$/.test(value)) {
+            rawTlv = value;
+            break;
+          } else if (key && /^[0-9A-Fa-f]{6,}$/.test(key)) {
+            rawTlv = key;
+            break;
+          }
         }
       }
     } else if (req.method === 'POST') {
