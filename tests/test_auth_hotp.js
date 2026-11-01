@@ -67,7 +67,16 @@ const parsedBinary = parseAuthTlv(tlvBinary);
 assert.strictEqual(parsedBinary.id, testId);
 assert.strictEqual(parsedBinary.otp, testOtp);
 assert.strictEqual(parsedBinary.counter, testCount);
-console.log('  ✅ Binary 정수 포맷 TLV 파싱 성공!\n');
+console.log('  ✅ Binary 정수 포맷 TLV 파싱 성공!');
+
+// C. 16바이트 (32자리 HEX) 스마트카드 UID 빌드 및 파싱 검증
+const test16ByteId = '0102030405060708090A0B0C0D0E0F10';
+const tlv16B = buildTlvPayload(test16ByteId, testOtp, testCount, 'ascii');
+console.log('  • 생성된 16B UID TLV:', tlv16B);
+const parsed16B = parseAuthTlv(tlv16B);
+assert.strictEqual(parsed16B.id, test16ByteId);
+assert.strictEqual(parsed16B.items.get('DF61').length, 16);
+console.log('  ✅ 16바이트(32자리 Hex) 스마트카드 UID TLV 파싱 성공!\n');
 
 // ----------------------------------------------------------------------------
 // Test 3: DB 키 암호화(Envelope Encryption)와 결합된 HOTP 인증 테스트

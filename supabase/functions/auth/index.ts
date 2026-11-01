@@ -37,7 +37,11 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown';
   const userAgent = req.headers.get('user-agent') || 'unknown';
-  const format = url.searchParams.get('format') || (req.headers.get('accept')?.includes('application/json') ? 'json' : 'html');
+  
+  // 브라우저는 HTML 렌더링, API/curl/앱은 data= 나 format=json 없이도 기본 JSON 반환
+  const acceptHeader = req.headers.get('accept') || '';
+  const isBrowser = acceptHeader.includes('text/html');
+  const format = url.searchParams.get('format') || (isBrowser ? 'html' : 'json');
 
   // 응답 헬퍼 함수
   const sendResponse = (
@@ -124,6 +128,14 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // 쿼리 스트링 전체가 직접 전달된 경우 (?DF6107... 또는 ?0102...)
+      if (!rawTlv && url.search) {
+        const queryClean = url.search.replace(/^\?/, '').trim();
+        if (/^[0-9A-Fa-f]{6,}$/.test(queryClean)) {
+          rawTlv = queryClean;
+        }
+      }
+
       // format 파라미터 이외의 다른 단일 파라미터가 있을 경우 fallback
       if (!rawTlv) {
         for (const [key, value] of url.searchParams.entries()) {
@@ -135,6 +147,15 @@ Deno.serve(async (req: Request) => {
             rawTlv = key;
             break;
           }
+        }
+      }
+
+      // URL 경로 끝에 파라미터가 붙은 경우 (/functions/v1/auth/DF61...)
+      if (!rawTlv) {
+        const segments = url.pathname.split('/').filter(Boolean);
+        const last = segments[segments.length - 1];
+        if (last && last.toLowerCase() !== 'auth' && /^[0-9A-Fa-f]{6,}$/.test(last)) {
+          rawTlv = last;
         }
       }
     } else if (req.method === 'POST') {

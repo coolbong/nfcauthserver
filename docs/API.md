@@ -43,15 +43,15 @@
 
 | 태그 (Tag) | 명칭 | 길이 (Length) | 데이터 형식 (Value) | 설명 |
 | :---: | :---: | :---: | :---: | :--- |
-| **`DF61`** | **id** | 가변 (일반적으로 7바이트 = 14 Hex) | Hex 문자열 | 스마트카드 하드웨어 고유 식별자 (UID, 예: `04DE5F1EACC040`) |
+| **`DF61`** | **id** | **16바이트** (32 Hex)<br/>*(7B/8B도 완벽 호환)* | Hex 문자열 | 스마트카드 하드웨어 고유 식별자 (UID, 예: `0102030405060708090A0B0C0D0E0F10`) |
 | **`DF62`** | **otp** | 가변 (6바이트 또는 4바이트) | ASCII 문자열 또는 Binary 정수 | RFC 4226 알고리즘으로 생성된 6자리 일회용 비밀번호 |
 | **`DF63`** | **count** | 가변 (1B ~ 4B) | Big-Endian 정수 바이트열 | **0부터 시작**하여 탭할 때마다 1씩 증가하는 보안 카운터 |
 
-#### BER-TLV 패킹 예시
-* `DF61` + `07` (길이 7바이트) + `04DE5F1EACC040` (UID)
-* `DF62` + `06` (길이 6바이트) + `353236303635` (ASCII "526065")
-* `DF63` + `03` (길이 3바이트) + `0007D6` (카운터 2006)
-* $\Rightarrow$ **최종 단일 페이로드**: `DF610704DE5F1EACC040DF6206353236303635DF63030007D6`
+#### BER-TLV 패킹 예시 (16바이트 UID 기준)
+* `DF61` + `10` (길이 16바이트 = 0x10) + `0102030405060708090A0B0C0D0E0F10` (16B UID)
+* `DF62` + `06` (길이 6바이트) + `333238343832` (ASCII "328482")
+* `DF63` + `03` (길이 3바이트) + `000000` (카운터 0)
+* $\Rightarrow$ **최종 단일 페이로드**: `DF61100102030405060708090A0B0C0D0E0F10DF6206333238343832DF6303000000`
 
 ### 2.3 카운터 0 시작 및 리플레이 공격 방어 규칙
 1. **최초 태깅 (Counter = 0)**:  
@@ -63,13 +63,19 @@
 
 ### 2.4 요청 예시
 
-#### [GET 방식 호출]
-```bash
-# 쿼리 파라미터 data에 단일 TLV 전달
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?data=DF610704DE5F1EACC040DF6206353236303635DF63030007D6&format=json"
+#### [초간결 GET 호출 (data= 및 format=json 없이 직접 전송)]
+> **스마트카드 NDEF 기록용 표준 포맷**:  
+> `data=` 키나 `format=json` 없이 물음표 뒤에 TLV 문자열만 직접 연결하여 사용합니다.  
+> API/curl/앱 호출 시 자동으로 **JSON**을 반환하며, 스마트폰 모바일 브라우저로 탭 시 미려한 **HTML 웹 화면**을 자동 렌더링합니다.
 
-# 키 이름 없이 직접 ?DF61... 형태로 전달하는 방식도 지원
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?DF610704DE5F1EACC040DF6206353236303635DF63030007D6&format=json"
+```bash
+# data= 및 format=json 없는 초간결 표준 호출
+curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?DF61100102030405060708090A0B0C0D0E0F10DF6206333238343832DF6303000000"
+```
+
+#### [호환 GET 호출 (쿼리 파라미터 data 명시)]
+```bash
+curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?data=DF61100102030405060708090A0B0C0D0E0F10DF6206333238343832DF6303000000"
 ```
 
 #### [POST 방식 호출 (JSON Body)]
