@@ -51,7 +51,17 @@ const testId = '04DE5F1EACC040';
 const testOtp = '287082';
 const testCount = 1;
 
-// A. ASCII OTP 빌드
+// A. 3바이트 Packed BCD OTP 빌드 (표준: DF62 03 328482)
+const tlvBcd = buildTlvPayload(testId, testOtp, testCount, 'bcd');
+console.log('  • 생성된 TLV (3B BCD OTP):', tlvBcd);
+assert.ok(tlvBcd.includes('DF6203287082'), 'DF62 03 BCD 인코딩 검증');
+const parsedBcd = parseAuthTlv(tlvBcd);
+assert.strictEqual(parsedBcd.id, testId);
+assert.strictEqual(parsedBcd.otp, testOtp);
+assert.strictEqual(parsedBcd.counter, testCount);
+console.log('  ✅ 3바이트 BCD 포맷 TLV 파싱 성공!');
+
+// B. ASCII OTP 호환성 검증
 const tlvAscii = buildTlvPayload(testId, testOtp, testCount, 'ascii');
 console.log('  • 생성된 TLV (ASCII OTP):', tlvAscii);
 const parsedAscii = parseAuthTlv(tlvAscii);
@@ -60,7 +70,7 @@ assert.strictEqual(parsedAscii.otp, testOtp);
 assert.strictEqual(parsedAscii.counter, testCount);
 console.log('  ✅ ASCII 포맷 TLV 파싱 성공!');
 
-// B. Binary 정수 OTP 빌드
+// C. Binary 정수 OTP 호환성 검증
 const tlvBinary = buildTlvPayload(testId, testOtp, testCount, 'binary');
 console.log('  • 생성된 TLV (Binary 4B OTP):', tlvBinary);
 const parsedBinary = parseAuthTlv(tlvBinary);
@@ -69,14 +79,17 @@ assert.strictEqual(parsedBinary.otp, testOtp);
 assert.strictEqual(parsedBinary.counter, testCount);
 console.log('  ✅ Binary 정수 포맷 TLV 파싱 성공!');
 
-// C. 16바이트 (32자리 HEX) 스마트카드 UID 빌드 및 파싱 검증
+// D. 16바이트 (32자리 HEX) 스마트카드 UID + 3바이트 BCD OTP 빌드 및 파싱 검증
 const test16ByteId = '0102030405060708090A0B0C0D0E0F10';
-const tlv16B = buildTlvPayload(test16ByteId, testOtp, testCount, 'ascii');
-console.log('  • 생성된 16B UID TLV:', tlv16B);
+const tlv16B = buildTlvPayload(test16ByteId, testOtp, testCount, 'bcd');
+console.log('  • 생성된 16B UID + BCD OTP TLV:', tlv16B);
+assert.strictEqual(tlv16B, 'DF61100102030405060708090A0B0C0D0E0F10DF6203287082DF6303000001');
 const parsed16B = parseAuthTlv(tlv16B);
 assert.strictEqual(parsed16B.id, test16ByteId);
+assert.strictEqual(parsed16B.otp, testOtp);
 assert.strictEqual(parsed16B.items.get('DF61').length, 16);
-console.log('  ✅ 16바이트(32자리 Hex) 스마트카드 UID TLV 파싱 성공!\n');
+assert.strictEqual(parsed16B.items.get('DF62').length, 3);
+console.log('  ✅ 16바이트 UID + 3바이트 BCD OTP 스마트카드 TLV 파싱 성공!\n');
 
 // ----------------------------------------------------------------------------
 // Test 3: DB 키 암호화(Envelope Encryption)와 결합된 HOTP 인증 테스트

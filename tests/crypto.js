@@ -364,16 +364,26 @@ export function parseAuthTlv(rawHexInput) {
 
   const otpBytes = hexToBytes(itemDf62.valueHex);
   let otpStr = '';
-  const isOtpAscii = otpBytes.length >= 6 && Array.from(otpBytes).every(b => b >= 0x30 && b <= 0x39);
-  if (isOtpAscii) {
+
+  if (itemDf62.length === 3 || otpBytes.length === 3) {
+    // 3바이트 Packed BCD 포맷 (6자리 OTP: 예: DF62 03 328482 -> "328482")
+    const bcdHex = itemDf62.valueHex.toUpperCase();
+    if (!/^[0-9]{6}$/.test(bcdHex)) {
+      throw new Error(`BCD OTP(DF62)에 유효하지 않은 16진수 문자가 포함되어 있습니다: ${bcdHex}`);
+    }
+    otpStr = bcdHex;
+  } else if (otpBytes.length >= 6 && Array.from(otpBytes).every(b => b >= 0x30 && b <= 0x39)) {
+    // ASCII 문자열 호환 (예: 6바이트 "333238343832" -> "328482")
     otpStr = Buffer.from(otpBytes).toString('ascii');
   } else if (otpBytes.length === 4) {
+    // 4바이트 Big-Endian 바이너리 정수
     let code = 0;
     for (let i = 0; i < 4; i++) {
       code = (code << 8) | otpBytes[i];
     }
     otpStr = (code % 1000000).toString().padStart(6, '0');
   } else {
+    // Hex 문자열 그대로
     otpStr = itemDf62.valueHex;
   }
 
@@ -386,14 +396,21 @@ export function parseAuthTlv(rawHexInput) {
   };
 }
 
-export function buildTlvPayload(id, otp, counter, otpFormat = 'ascii') {
+export function buildTlvPayload(id, otp, counter, otpFormat = 'bcd') {
   const idHex = id.trim().replace(/^0x/i, '').toUpperCase();
   const idLen = idHex.length / 2;
   const tlvId = `DF61${idLen.toString(16).padStart(2, '0').toUpperCase()}${idHex}`;
 
   let otpValueHex = '';
   const otpStr = String(otp).trim();
-  if (otpFormat === 'ascii') {
+  if (otpFormat === 'bcd') {
+    // 3바이트 Packed BCD 포맷 (예: "328482" -> 3바이트 "328482", TLV: DF6203328482)
+    const cleanOtp = otpStr.padStart(6, '0');
+    if (!/^[0-9]{6}$/.test(cleanOtp)) {
+      throw new Error(`BCD OTP는 6자리 숫자여야 합니다: ${otpStr}`);
+    }
+    otpValueHex = cleanOtp;
+  } else if (otpFormat === 'ascii') {
     otpValueHex = Buffer.from(otpStr, 'ascii').toString('hex').toUpperCase();
   } else if (otpFormat === 'binary') {
     const num = parseInt(otpStr, 10);

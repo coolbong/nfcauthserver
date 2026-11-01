@@ -221,15 +221,19 @@ export function parseAuthTlv(rawHexInput: string): ParsedAuthPayload {
   }
 
   // 3. OTP 해석 (DF62)
-  // 스마트카드에서 OTP가 전달될 수 있는 3가지 형식 지원:
-  // A. ASCII 문자열 (예: 6바이트 "313233343536" -> "123456")
-  // B. 4바이트 Big-Endian 정수 (예: 4바이트 "0001E240" -> 123456)
-  // C. BCD 또는 Hex 10진수 문자열
+  // 스마트카드 표준 포맷: 3바이트 Packed BCD (예: DF62 03 328482 -> "328482")
   const otpBytes = hexToBytes(itemDf62.valueHex);
   let otpStr = '';
 
-  const isOtpAscii = otpBytes.length >= 6 && Array.from(otpBytes).every(b => b >= 0x30 && b <= 0x39);
-  if (isOtpAscii) {
+  if (itemDf62.length === 3 || otpBytes.length === 3) {
+    // 3바이트 Packed BCD 포맷 (6자리 OTP: 각 니블이 0~9)
+    const bcdHex = itemDf62.valueHex.toUpperCase();
+    if (!/^[0-9]{6}$/.test(bcdHex)) {
+      throw new Error(`BCD OTP(DF62)에 유효하지 않은 16진수 문자가 포함되어 있습니다: ${bcdHex}`);
+    }
+    otpStr = bcdHex;
+  } else if (otpBytes.length >= 6 && Array.from(otpBytes).every(b => b >= 0x30 && b <= 0x39)) {
+    // ASCII 문자열 호환 (예: 6바이트 "333238343832" -> "328482")
     otpStr = Buffer.from(otpBytes).toString('ascii');
   } else if (otpBytes.length === 4) {
     // 4바이트 Big-Endian 바이너리 정수
@@ -237,7 +241,6 @@ export function parseAuthTlv(rawHexInput: string): ParsedAuthPayload {
     for (let i = 0; i < 4; i++) {
       code = (code << 8) | otpBytes[i];
     }
-    // 기본 6자리 형식
     otpStr = (code % 1000000).toString().padStart(6, '0');
   } else {
     // Hex 문자열 그대로를 OTP로 간주
