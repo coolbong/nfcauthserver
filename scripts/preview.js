@@ -1,6 +1,6 @@
 // scripts/preview.js
 // Supabase의 *.supabase.co 도메인 text/plain 제한을 우회하여 브라우저에서 모바일 화면을 즉시 확인할 수 있는 로컬 프리뷰 서버
-// v1 (/v1/nfc) 및 v2 (/v2/auth, /functions/v2/auth) 엔드포인트 지원
+// nfc (/functions/v1/nfc) 및 auth (/functions/v1/auth) 엔드포인트 지원
 import http from 'node:http';
 import {
   calculateHotp,
@@ -11,15 +11,15 @@ import {
 
 const port = 3000;
 const supabaseNfcUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc';
-const supabaseAuthUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/v2/auth';
+const supabaseAuthUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth';
 
 const server = http.createServer(async (req, res) => {
   const reqUrl = new URL(req.url, `http://localhost:${port}`);
 
-  // 1. v1 NFC SDM 엔드포인트 프록시
-  if (reqUrl.pathname === '/' || reqUrl.pathname === '/v1/nfc') {
+  // 1. NFC SDM 엔드포인트 프록시 (/nfc 또는 /functions/v1/nfc)
+  if (reqUrl.pathname === '/' || reqUrl.pathname === '/nfc' || reqUrl.pathname === '/functions/v1/nfc' || reqUrl.pathname === '/v1/nfc') {
     const target = `${supabaseNfcUrl}${reqUrl.search}`;
-    console.log(`📡 [v1 NFC] Supabase Edge Function 호출: ${target}`);
+    console.log(`📡 [NFC SDM] Supabase Edge Function 호출: ${target}`);
 
     try {
       const response = await fetch(target);
@@ -38,10 +38,10 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 2. v2 AUTH (TLV + HOTP) 엔드포인트
-  if (reqUrl.pathname === '/v2/auth' || reqUrl.pathname === '/functions/v2/auth' || reqUrl.pathname === '/v1/auth') {
+  // 2. AUTH (TLV + HOTP) 엔드포인트 (/auth 또는 /functions/v1/auth)
+  if (reqUrl.pathname === '/auth' || reqUrl.pathname === '/functions/v1/auth') {
     const target = `${supabaseAuthUrl}${reqUrl.search}`;
-    console.log(`📡 [v2 AUTH] 호출: ${target}`);
+    console.log(`📡 [AUTH TLV+HOTP] 호출: ${target}`);
 
     try {
       const response = await fetch(target);
@@ -97,7 +97,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('Not Found (지원 경로: /v1/nfc, /v2/auth, /functions/v2/auth)');
+  res.end('Not Found (지원 경로: /nfc, /auth, /functions/v1/auth, /functions/v1/nfc)');
 });
 
 // 샘플 TLV 데이터 생성
@@ -110,10 +110,10 @@ server.listen(port, () => {
   console.log(`\n===============================================================`);
   console.log(`🚀 [NFC Authentication 로컬 프리뷰 서버 실행 중 (포트 ${port})]`);
   console.log(`===============================================================`);
-  console.log(`[v1 SDM 정품 인증 링크]:`);
-  console.log(`   http://localhost:3000/v1/nfc?uid=04DE5F1EACC040&cnt=000060&mac=96FAD65E40E02794\n`);
-  console.log(`[v2 TLV + HOTP 정품 인증 링크]:`);
-  console.log(`   http://localhost:3000/v2/auth?data=${sampleTlv}&format=json`);
-  console.log(`   http://localhost:3000/v2/auth?data=${sampleTlv}`);
+  console.log(`[NFC SDM 정품 인증 링크]:`);
+  console.log(`   http://localhost:3000/nfc?uid=04DE5F1EACC040&cnt=000060&mac=96FAD65E40E02794\n`);
+  console.log(`[AUTH TLV + HOTP 정품 인증 링크]:`);
+  console.log(`   http://localhost:3000/auth?data=${sampleTlv}&format=json`);
+  console.log(`   http://localhost:3000/auth?data=${sampleTlv}`);
   console.log(`===============================================================\n`);
 });

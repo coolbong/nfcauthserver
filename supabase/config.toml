@@ -15,9 +15,5 @@ port = 54322
 verify_jwt = false
 
 [functions.auth]
-# v2 TLV (DF61, DF62, DF63) + HOTP 인증 엔드포인트
-verify_jwt = false
-
-[functions.v2]
-# v2 라우팅 (/v2/auth, /v2) 엔드포인트
+# 단일 파라미터 BER-TLV (DF61, DF62, DF63) + RFC 4226 HOTP 인증 엔드포인트
 verify_jwt = false

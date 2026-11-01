@@ -1,5 +1,5 @@
-// tests/test_v2_auth.js
-// v2 TLV (DF61, DF62, DF63) + HOTP (RFC 4226) 종합 단위 테스트 러너
+// tests/test_auth_hotp.js
+// NFC Authentication TLV (DF61, DF62, DF63) + HOTP (RFC 4226) 종합 단위 테스트 러너
 import assert from 'node:assert';
 import {
   hexToBytes,
@@ -14,7 +14,7 @@ import {
 } from './crypto.js';
 
 console.log('🧪 ===============================================================');
-console.log('🧪 [v2 NFC Authentication: BER-TLV + HOTP (RFC 4226) 단위 테스트 시작]');
+console.log('🧪 [NFC Authentication: BER-TLV + HOTP (RFC 4226) 단위 테스트 시작]');
 console.log('🧪 ===============================================================\n');
 
 // ----------------------------------------------------------------------------
@@ -131,5 +131,5 @@ assert.strictEqual(parseAuthTlv(tlv4B).counter, 1002);
 console.log('  ✅ 1B, 2B, 3B, 4B 카운터 길이 디코딩 100% 호환 확인!\n');
 
 console.log('🎉 ===============================================================');
-console.log('🎉 [v2 BER-TLV + HOTP (RFC 4226) 모든 단위 테스트 100% 통과!]');
+console.log('🎉 [BER-TLV + HOTP (RFC 4226) 모든 단위 테스트 100% 통과!]');
 console.log('🎉 ===============================================================');

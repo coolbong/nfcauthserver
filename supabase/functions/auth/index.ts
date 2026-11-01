@@ -1,5 +1,5 @@
 // supabase/functions/auth/index.ts
-// v2 NFC Authentication 보안 인증 엔드포인트 (/functions/v2/auth 또는 /v1/auth)
+// NFC Authentication 보안 인증 엔드포인트 (/functions/v1/auth)
 // 단일 파라미터 BER-TLV (DF61: id, DF62: otp, DF63: count) 파싱 및 RFC 4226 HOTP 동적 검증
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import {
@@ -61,7 +61,6 @@ Deno.serve(async (req: Request) => {
       });
       return new Response(
         JSON.stringify({
-          version: 'v2',
           authType: 'HOTP',
           success: resultCode === 'SUCCESS',
           resultCode,

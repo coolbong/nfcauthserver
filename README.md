@@ -3,7 +3,10 @@
 동적 보안 메시징(SDM) 프로토콜을 지원하는 보안 NFC 태그를 기반으로, 스마트폰 NFC 탭 시 전달되는 데이터(`uid`, `cnt`, `mac`, `kid`)를 실시간 검증하고 모바일 정품 인증 화면을 제공하는 **Supabase 백엔드 & GitHub Pages 정품 인증 시스템**입니다.
 
 - 🌐 **공식 정품 인증 웹페이지 (GitHub Pages)**: [https://coolbong.github.io/nfcauthserver/](https://coolbong.github.io/nfcauthserver/)
-- ⚡ **Supabase Edge Function API 엔드포인트**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
+- ⚡ **Supabase Edge Function API 엔드포인트**:
+  * **AUTH API (단일 TLV + HOTP)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
+  * **NFC API (SDM AES-128-CMAC)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
+- 📖 **API 상세 규격서**: [API.md](file:///D:/dev/orca/nfcauthserver/API.md) 참조
 
 ---
 
