@@ -19,10 +19,13 @@ data class NfcPayload(
  */
 @Serializable
 data class VerificationResponse(
+    val version: String? = null,
+    val authType: String? = null,
     val success: Boolean = false,
     val resultCode: String = "UNKNOWN",
     val uid: String? = null,
     val counter: Long? = null,
+    val otp: String? = null,
     val tagName: String? = null,
     val totalScans: Int? = null,
     val firstVerifiedAt: String? = null,

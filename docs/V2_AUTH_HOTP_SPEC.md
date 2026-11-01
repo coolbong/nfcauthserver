@@ -27,8 +27,8 @@ flowchart TD
 
 ## 2. API 엔드포인트 사양
 
-- **Supabase Edge Function 엔드포인트**: `https://<project-ref>.supabase.co/functions/v1/auth`
-- **로컬 프리뷰 엔드포인트**: `http://localhost:3000/v2/auth` (또는 `/functions/v2/auth`)
+- **Supabase Edge Function 엔드포인트**: `https://<project-ref>.supabase.co/functions/v1/v2/auth` (또는 `/functions/v1/v2`, `/functions/v1/auth`)
+- **로컬 / 프록시 엔드포인트**: `http://localhost:3000/functions/v2/auth` (또는 `/v2/auth`)
 - **HTTP 메소드**: `GET` 및 `POST` 모두 지원
 - **응답 형식**: JSON (`format=json` 또는 Header `Accept: application/json`), HTML (모바일 브라우저 직접 접속 시)
 
@@ -103,12 +103,12 @@ DF61 07 04DE5F1EACC040 DF62 06 323837303832 DF63 03 000001
 
 ### 6.1 HTTP GET 호출 (쿼리 파라미터 `data`)
 ```bash
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?data=DF610704DE5F1EACC040DF6206323837303832DF6303000001&format=json"
+curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/v2/auth?data=DF610704DE5F1EACC040DF6206323837303832DF6303000001&format=json"
 ```
 
 ### 6.2 HTTP POST 호출 (JSON Body)
 ```bash
-curl -X POST "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth" \
+curl -X POST "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/v2/auth" \
   -H "Content-Type: application/json" \
   -d '{
     "data": "DF610704DE5F1EACC040DF6206323837303832DF6303000001"

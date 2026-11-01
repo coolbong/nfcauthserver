@@ -11,7 +11,7 @@ import {
 
 const port = 3000;
 const supabaseNfcUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc';
-const supabaseAuthUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth';
+const supabaseAuthUrl = 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/v2/auth';
 
 const server = http.createServer(async (req, res) => {
   const reqUrl = new URL(req.url, `http://localhost:${port}`);
