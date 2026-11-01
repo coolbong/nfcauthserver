@@ -216,7 +216,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. 카운터 검증 (리플레이 공격 방어)
-    if (counter <= tag.last_counter) {
+    // 카운터 0 시작 지원: 태그의 최초 인증(total_scans === 0)인 경우 counter 0부터 허용, 이후에는 반드시 이전 카운터 초과여야 함
+    const isFirstScan = (tag.total_scans === 0 || tag.first_verified_at === null);
+    const isReplay = isFirstScan ? (counter < tag.last_counter) : (counter <= tag.last_counter);
+
+    if (isReplay) {
       await supabase.rpc('verify_and_log_nfc_scan', {
         p_uid: id,
         p_key_index: tag.key_index,
