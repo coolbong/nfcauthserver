@@ -166,10 +166,11 @@
       font-weight: 600;
       font-size: 12px;
       text-align: center;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .test-btn:hover {
-      background: #475569;
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     /* ==============================================================
@@ -580,10 +581,23 @@
 
       <!-- 테스트 샘플 버튼 (파라미터 누락 시에만 표시) -->
       <div class="test-box" id="testBox" style="display: none;">
-        <p><strong>💡 파라미터가 없는 상태입니다.</strong><br>원하시는 인증 방식의 테스트 버튼을 선택해주세요:</p>
+        <p><strong>💡 파라미터가 없는 상태입니다.</strong><br>검증하고자 하는 카운터의 테스트 버튼을 선택해주세요:</p>
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-          <a href="?DF610704DE5F1EACC040DF6203328482DF63030007D6" class="test-btn">스마트카드 HOTP (단일 TLV) 테스트</a>
-          <a href="?uid=04DE5F1EACC040&cnt=000060&mac=96FAD65E40E02794" class="test-btn" style="background: #1e293b; border: 1px solid #38bdf8;">NTAG 424 DNA (SDM CMAC) 테스트</a>
+          <a href="?DF610704DE5F1EACC040DF6203328482DF6303000000" class="test-btn">
+            ▶ 1회차 탭: 스마트카드 HOTP (카운터 #0)
+          </a>
+          <a href="?DF610704DE5F1EACC040DF6203812658DF6303000001" class="test-btn" style="background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6;">
+            ▶ 2회차 탭: 스마트카드 HOTP (카운터 #1)
+          </a>
+          <a href="?DF610704DE5F1EACC040DF6203073348DF6303000002" class="test-btn" style="background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6;">
+            ▶ 3회차 탭: 스마트카드 HOTP (카운터 #2)
+          </a>
+          <a href="?DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000" class="test-btn" style="background: #064e3b; color: #6ee7b7; border: 1px solid #10b981;">
+            ▶ 16바이트 UID 스마트카드 (카운터 #0)
+          </a>
+          <a href="?uid=04DE5F1EACC040&cnt=000001&mac=EA2BEDD5DDB4F744" class="test-btn" style="background: #1e293b; color: #38bdf8; border: 1px solid #38bdf8;">
+            ▶ NTAG 424 DNA (SDM CMAC 카운터 #1)
+          </a>
         </div>
       </div>
 
