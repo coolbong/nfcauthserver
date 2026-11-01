@@ -1,6 +1,7 @@
 // supabase/functions/auth/index.ts
 // NFC Authentication 보안 인증 엔드포인트 (/functions/v1/auth)
 // 단일 파라미터 BER-TLV (DF61: id, DF62: otp, DF63: count) 파싱 및 RFC 4226 HOTP 동적 검증
+// 순수 JSON REST API 처리 (HTML 뷰 없음)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import {
   parseAuthTlv,
@@ -8,7 +9,6 @@ import {
   decryptNfcKeyFromDb,
   hexToBytes
 } from './crypto.ts';
-import { renderVerificationPage } from './views.ts';
 
 // Supabase 클라이언트 초기화
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -20,6 +20,34 @@ const masterKek = Deno.env.get('NFC_KEK') || defaultKek;
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false }
 });
+
+type AuthResultCode = 
+  | 'SUCCESS' 
+  | 'COUNTER_REPLAY' 
+  | 'INVALID_OTP' 
+  | 'TAG_NOT_FOUND' 
+  | 'TAG_INACTIVE' 
+  | 'BAD_REQUEST' 
+  | 'SERVER_ERROR';
+
+function getDefaultErrorMessage(code: AuthResultCode): string {
+  switch (code) {
+    case 'COUNTER_REPLAY':
+      return '이전에 이미 사용된 일회용 보안 카운터입니다 (복제 의심).';
+    case 'INVALID_OTP':
+      return '일회용 비밀번호(HOTP) 검증에 실패했습니다 (위조 의심).';
+    case 'TAG_NOT_FOUND':
+      return '등록되지 않은 NFC 스마트카드 식별자(UID)입니다.';
+    case 'TAG_INACTIVE':
+      return '해당 스마트카드 또는 보안 키가 비활성화 상태입니다.';
+    case 'BAD_REQUEST':
+      return '요청 파라미터가 유효하지 않습니다.';
+    case 'SERVER_ERROR':
+      return '서버 내부 처리 중 오류가 발생했습니다.';
+    default:
+      return '알 수 없는 오류가 발생했습니다.';
+  }
+}
 
 Deno.serve(async (req: Request) => {
   // CORS 프리플라이트 처리
@@ -37,18 +65,14 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown';
   const userAgent = req.headers.get('user-agent') || 'unknown';
-  
-  // 브라우저는 HTML 렌더링, API/curl/앱은 data= 나 format=json 없이도 기본 JSON 반환
-  const acceptHeader = req.headers.get('accept') || '';
-  const isBrowser = acceptHeader.includes('text/html');
-  const format = url.searchParams.get('format') || (isBrowser ? 'html' : 'json');
 
-  // 응답 헬퍼 함수
+  // 순수 JSON API 응답 헬퍼 함수 (항상 application/json 반환)
   const sendResponse = (
     statusCode: number,
-    resultCode: 'SUCCESS' | 'COUNTER_REPLAY' | 'INVALID_OTP' | 'TAG_NOT_FOUND' | 'TAG_INACTIVE' | 'BAD_REQUEST' | 'SERVER_ERROR',
+    resultCode: AuthResultCode,
     data: {
       message?: string;
+      detail?: string;
       uid?: string;
       counter?: number;
       otp?: string;
@@ -58,46 +82,45 @@ Deno.serve(async (req: Request) => {
       productInfo?: Record<string, unknown> | null;
     } = {}
   ) => {
-    if (format === 'json') {
-      const jsonHeaders = new Headers({
-        'content-type': 'application/json; charset=utf-8',
-        'access-control-allow-origin': '*'
-      });
-      return new Response(
-        JSON.stringify({
-          authType: 'HOTP',
-          success: resultCode === 'SUCCESS',
-          resultCode,
-          ...data
-        }),
-        {
-          status: statusCode,
-          headers: jsonHeaders
-        }
-      );
+    const isSuccess = resultCode === 'SUCCESS';
+    const jsonHeaders = new Headers({
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store, no-cache, must-revalidate',
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
+      'access-control-allow-headers': '*'
+    });
+
+    const responsePayload: Record<string, unknown> = {
+      success: isSuccess,
+      resultCode,
+      authType: 'HOTP',
+      ...(data.uid ? { uid: data.uid } : {}),
+      ...(data.counter !== undefined ? { counter: data.counter } : {}),
+      ...(data.otp ? { otp: data.otp } : {}),
+      ...(data.tagName ? { tagName: data.tagName } : {})
+    };
+
+    if (isSuccess) {
+      if (data.totalScans !== undefined) responsePayload.totalScans = data.totalScans;
+      if (data.firstVerifiedAt !== undefined) responsePayload.firstVerifiedAt = data.firstVerifiedAt;
+      if (data.productInfo !== undefined) responsePayload.productInfo = data.productInfo;
+    } else {
+      const errorMessage = data.message || getDefaultErrorMessage(resultCode);
+      responsePayload.message = errorMessage;
+      responsePayload.error = {
+        code: resultCode,
+        message: errorMessage,
+        ...(data.detail ? { detail: data.detail } : {})
+      };
+      if (data.totalScans !== undefined) responsePayload.totalScans = data.totalScans;
+      if (data.firstVerifiedAt !== undefined) responsePayload.firstVerifiedAt = data.firstVerifiedAt;
+      if (data.productInfo !== undefined) responsePayload.productInfo = data.productInfo;
     }
 
-    const html = renderVerificationPage({
-      resultCode,
-      uid: data.uid,
-      counter: data.counter,
-      otp: data.otp,
-      tagName: data.tagName,
-      totalScans: data.totalScans,
-      firstVerifiedAt: data.firstVerifiedAt,
-      productInfo: data.productInfo,
-      errorMessage: data.message
-    });
-
-    const htmlHeaders = new Headers({
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store, no-cache, must-revalidate',
-      'access-control-allow-origin': '*'
-    });
-
-    return new Response(html, {
+    return new Response(JSON.stringify(responsePayload), {
       status: statusCode,
-      headers: htmlHeaders
+      headers: jsonHeaders
     });
   };
 

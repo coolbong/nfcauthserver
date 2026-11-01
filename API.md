@@ -1,186 +1,197 @@
 # NFC Authentication Server API 명세서 (API.md)
 
-본 문서는 **NFC 스마트카드 및 보안 태그 정품 인증 서버**에서 제공하는 2개의 핵심 인증 API(`auth`, `nfc`)에 대한 기술 명세서입니다.
+본 문서는 **NFC 스마트카드 및 보안 태그 정품 인증 서버**에서 제공하는 2개의 순수 JSON REST API(`auth`, `nfc`)에 대한 공식 기술 명세서입니다.
+
+> **💡 순수 JSON API 정책**  
+> Supabase Edge Function 백엔드는 **View(HTML) 렌더링 코드 없이 100% 순수 JSON API**로만 동작합니다.  
+> `GET` 또는 `POST` 요청 시 별도의 헤더나 `format=json` 파라미터 없이도 항상 `Content-Type: application/json; charset=utf-8` 포맷으로 성공/실패 응답을 반환합니다.
 
 ---
 
 ## 📌 목차
-1. [공통 사양 및 규격](#1-공통-사양-및-규격)
-2. [1. AUTH API (`/functions/v1/auth`) - TLV + RFC 4226 HOTP](#2-1-auth-api-functionsv1auth---tlv--rfc-4226-hotp)
-3. [2. NFC API (`/functions/v1/nfc`) - NTAG 424 DNA SDM CMAC](#3-2-nfc-api-functionsv1nfc---ntag-424-dna-sdm-cmac)
-4. [인증 결과 코드 (Result Code) 정의](#4-인증-결과-코드-result-code-정의)
-5. [오류 처리 및 예외 상황 가이드](#5-오류-처리-및-예외-상황-가이드)
+1. [공통 사양 및 표준 JSON 응답 포맷](#1-공통-사양-및-표준-json-응답-포맷)
+2. [에러 응답 규격 및 결과 코드 정의](#2-에러-응답-규격-및-결과-코드-정의)
+3. [AUTH API (`/functions/v1/auth`) - TLV + RFC 4226 HOTP](#3-auth-api-functionsv1auth---tlv--rfc-4226-hotp)
+4. [NFC API (`/functions/v1/nfc`) - NTAG 424 DNA SDM CMAC](#4-nfc-api-functionsv1nfc---ntag-424-dna-sdm-cmac)
+5. [두 API 비교 및 요약](#5-두-api-비교-및-요약)
 
 ---
 
-## 1. 공통 사양 및 규격
+## 1. 공통 사양 및 표준 JSON 응답 포맷
 
-* **호스트 기본 주소 (Base URL)**:  
+### 1.1 기본 정보
+* **기본 호스트 (Base URL)**:  
   `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/`
-* **로컬 프리뷰 서버 주소**:  
-  `http://localhost:3000/`
-* **HEX 대문자 표준 정책**:  
-  UID, 키, MAC, TLV 등 **모든 HEX 문자열은 영문 대문자(`A-F`)를 기준으로 사용 및 저장**됩니다. (소문자 입력 시 서버에서 자동으로 대문자로 변환하여 처리)
-* **응답 포맷 선택**:  
-  * **JSON 응답**: 쿼리 파라미터 `format=json` 전달 또는 HTTP 헤더 `Accept: application/json` 설정
-  * **HTML 웹 UI 응답**: 모바일 브라우저로 직접 접속 시 사용자 친화적인 정품 인증 모바일 화면 자동 렌더링
+* **응답 미디어 타입**:  
+  `application/json; charset=utf-8` (모든 성공 및 에러 응답 동일)
+* **대문자 HEX 표준**:  
+  UID, 암호키, OTP, MAC 등 **모든 16진수 문자열은 영문 대문자(`A-F`)**를 기준으로 사용 및 저장됩니다.
 
 ---
 
-## 2. 1) AUTH API (`/functions/v1/auth`) - TLV + RFC 4226 HOTP
+### 1.2 표준 성공 응답 포맷 (HTTP 200 OK)
 
-스마트카드로부터 단 하나의 파라미터(**BER-TLV 포맷**)를 전달받아, IETF 표준 **RFC 4226 HOTP(HMAC-SHA-1)** 알고리즘으로 동적 일회용 암호를 검증하고 카운터 리플레이 공격을 방어합니다.
+인증 성공 시 `success: true`와 함께 검증된 태그/카드 정보 및 등록된 제품 메타데이터가 반환됩니다.
 
-### 2.1 엔드포인트 정보
-* **엔드포인트**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
-* **HTTP 메서드**: `GET`, `POST`
-* **인증 방식**: RFC 4226 HOTP (HMAC-SHA-1)
-* **비밀키 ($K$)**: DB `nfc_keys`에 보관된 해당 UID 매핑 16바이트(AES-128) 대칭키 사용
-
-### 2.2 단일 파라미터 BER-TLV 규격
-
-요청 시 **오직 1개의 파라미터**만 전달됩니다. 파라미터 내부에는 ISO/IEC 7816-4 규격의 BER-TLV 태그 3개가 포함되어 있습니다:
-
-| 태그 (Tag) | 명칭 | 길이 (Length) | 데이터 형식 (Value) | 설명 |
-| :---: | :---: | :---: | :---: | :--- |
-| **`DF61`** | **id** | **16바이트** (32 Hex)<br/>*(7B/8B도 완벽 호환)* | Hex 문자열 | 스마트카드 하드웨어 고유 식별자 (UID, 예: `0102030405060708090A0B0C0D0E0F10`) |
-| **`DF62`** | **otp** | **3바이트** (6 Hex) | **Packed BCD** | RFC 4226 알고리즘으로 생성된 6자리 일회용 비밀번호 (예: `328482`) |
-| **`DF63`** | **count** | **3바이트** (6 Hex)<br/>*(1B~4B 호환)* | Big-Endian 정수 바이트열 | **0부터 시작**하여 탭할 때마다 1씩 증가하는 보안 카운터 |
-
-#### BER-TLV 패킹 예시 (스마트카드 표준: 16B UID + 3B BCD OTP + 3B Counter)
-* `DF61` + `10` (길이 16바이트 = 0x10) + `0102030405060708090A0B0C0D0E0F10` (16B UID)
-* `DF62` + `03` (길이 3바이트 = 0x03) + `328482` (3바이트 BCD "328482")
-* `DF63` + `03` (길이 3바이트 = 0x03) + `000000` (카운터 0)
-* $\Rightarrow$ **최종 단일 페이로드**: `DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000`
-
-### 2.3 카운터 0 시작 및 리플레이 공격 방어 규칙
-1. **최초 태깅 (Counter = 0)**:  
-   해당 UID의 최초 인증(`total_scans = 0` 또는 `first_verified_at IS NULL`)인 경우 카운터 0이 정상 승인됩니다.
-2. **카운터 재사용 차단**:  
-   이전에 이미 사용된 카운터(즉, `counter <= last_counter`)가 재전송되면 **`COUNTER_REPLAY` (HTTP 409)** 경고와 함께 차단됩니다.
-3. **원자적 갱신**:  
-   검증 성공 시 PostgreSQL 격리 트랜잭션(`FOR UPDATE`)을 통해 `last_counter`와 `total_scans`가 갱신됩니다.
-
-### 2.4 요청 예시
-
-#### [초간결 GET 호출 (data= 및 format=json 없이 직접 전송)]
-> **스마트카드 NDEF 기록용 표준 포맷**:  
-> `data=` 키나 `format=json` 없이 물음표 뒤에 TLV 문자열만 직접 연결하여 사용합니다.  
-> API/curl/앱 호출 시 자동으로 **JSON**을 반환하며, 스마트폰 모바일 브라우저로 탭 시 미려한 **HTML 웹 화면**을 자동 렌더링합니다.
-
-```bash
-# data= 및 format=json 없는 초간결 표준 호출 (3바이트 BCD OTP 적용)
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"
-```
-
-#### [호환 GET 호출 (쿼리 파라미터 data 명시)]
-```bash
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?data=DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"
-```
-
-#### [POST 방식 호출 (JSON Body)]
-```bash
-curl -X POST "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?format=json" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data": "DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"
-  }'
-```
-
-### 2.5 응답 예시
-
-#### 성공 응답 (HTTP 200 OK)
 ```json
 {
-  "authType": "HOTP",
   "success": true,
   "resultCode": "SUCCESS",
-  "uid": "04DE5F1EACC040",
-  "counter": 2006,
-  "otp": "526065",
-  "tagName": "NFC 보안 인증 테스트 태그",
-  "totalScans": 16,
-  "firstVerifiedAt": "2026-10-15T09:00:08.772347+00:00",
+  "authType": "HOTP",
+  "uid": "0102030405060708090A0B0C0D0E0F10",
+  "counter": 1,
+  "otp": "812658",
+  "tagName": "16바이트 UID 스마트카드 정품 태그",
+  "totalScans": 2,
+  "firstVerifiedAt": "2026-11-01T05:29:39.800005+00:00",
   "productInfo": {
-    "brand": "NFC Authentication",
-    "model": "NFC Secure SmartCard",
+    "brand": "OrcaSmartCard",
+    "model": "16B-Card",
     "serialNumber": "NFC-AUTH-0001",
-    "warranty": "2년 품질 및 보안 무결성 보증",
-    "description": "DB 키 암호화 및 실시간 CMAC 검증이 적용된 공식 디지털 정품 인증 태그입니다."
+    "description": "공식 디지털 정품 인증 카드입니다."
   }
 }
 ```
 
-#### 리플레이 공격 감지 응답 (HTTP 409 Conflict)
+#### 성공 응답 필드 정의
+| 필드명 | 타입 | 설명 |
+| :--- | :---: | :--- |
+| `success` | `boolean` | 인증 성공 여부 (항상 `true`) |
+| `resultCode` | `string` | 결과 코드 (항상 `"SUCCESS"`) |
+| `authType` | `string` | 인증 알고리즘 방식 (`"HOTP"` 또는 `"CMAC"`) |
+| `uid` | `string` | 검증된 스마트카드/태그 고유 식별자 (대문자 Hex) |
+| `counter` | `number` | 검증 완료된 현재 보안 카운터 정수 값 |
+| `otp` | `string` | [auth 전용] 검증된 6자리 일회용 비밀번호 |
+| `tagName` | `string` | 데이터베이스에 등록된 태그 명칭/제품명 |
+| `totalScans` | `number` | 누적 정품 인증 횟수 (성공 시 1씩 자동 증가) |
+| `firstVerifiedAt` | `string` | 최초 정품 인증 일시 (ISO-8601 타임스탬프) |
+| `productInfo` | `object` | 제품 상세 메타데이터 (브랜드, 모델, 보증정보 등) |
+
+---
+
+## 2. 에러 응답 규격 및 결과 코드 정의
+
+인증 실패 시 `success: false`와 함께 원인을 명시하는 `resultCode`, 안내 문자열 `message`, 그리고 구조화된 **`error` 객체**가 반환됩니다. 클라이언트 컨텍스트 유지를 위해 전달된 `uid`, `counter` 정보도 함께 반환됩니다.
+
+### 2.1 표준 에러 응답 포맷
 ```json
 {
-  "authType": "HOTP",
   "success": false,
   "resultCode": "COUNTER_REPLAY",
-  "uid": "04DE5F1EACC040",
-  "counter": 2006,
-  "otp": "526065",
-  "tagName": "NFC 보안 인증 테스트 태그",
-  "totalScans": 16,
-  "firstVerifiedAt": "2026-10-15T09:00:08.772347+00:00",
+  "authType": "HOTP",
+  "message": "이전에 이미 사용된 일회용 보안 카운터입니다 (복제 의심).",
+  "error": {
+    "code": "COUNTER_REPLAY",
+    "message": "이전에 이미 사용된 일회용 보안 카운터입니다 (복제 의심)."
+  },
+  "uid": "0102030405060708090A0B0C0D0E0F10",
+  "counter": 1,
+  "otp": "812658",
+  "tagName": "16바이트 UID 스마트카드 정품 태그",
+  "totalScans": 2,
+  "firstVerifiedAt": "2026-11-01T05:29:39.800005+00:00",
   "productInfo": { ... }
 }
 ```
 
-#### OTP 불일치 응답 (HTTP 401 Unauthorized)
-```json
-{
-  "authType": "HOTP",
-  "success": false,
-  "resultCode": "INVALID_OTP",
-  "uid": "04DE5F1EACC040",
-  "counter": 2006,
-  "otp": "999999",
-  "tagName": "NFC 보안 인증 테스트 태그",
-  "message": "HOTP 일회용 비밀번호 검증에 실패했습니다. (불일치)"
-}
+### 2.2 결과 코드 (Result Code) 및 에러 정의 일람표
+
+| HTTP 상태 | `resultCode` | `error.code` | 기본 안내 메시지 (`message`) | 발생 원인 및 클라이언트 대응 |
+| :---: | :--- | :--- | :--- | :--- |
+| **`200`** | **`SUCCESS`** | - | - | **정품 인증 성공**: 정상 화면 표시 및 제품정보 제공 |
+| **`400`** | **`BAD_REQUEST`** | `BAD_REQUEST` | 필수 파라미터가 누락되었거나 규격에 맞지 않습니다. | **파라미터 오류**: TLV 포맷 누락, 16진수 규격 오류, 필수 필드 누락 |
+| **`401`** | **`INVALID_OTP`** | `INVALID_OTP` | 일회용 비밀번호(HOTP) 검증에 실패했습니다 (위조 의심). | **[auth 전용] OTP 불일치**: 계산된 HOTP와 수신 OTP 불일치 (위조품 차단) |
+| **`401`** | **`INVALID_MAC`** | `INVALID_MAC` | NFC 암호화 동적 서명 검증에 실패했습니다 (위조 의심). | **[nfc 전용] 서명 불일치**: CMAC 서명 불일치 (변조/위조품 차단) |
+| **`403`** | **`TAG_INACTIVE`** | `TAG_INACTIVE` | 해당 스마트카드 또는 보안 키가 비활성화 상태입니다. | **비활성 상태**: DB에서 태그/키 상태가 `ACTIVE`가 아님 (정지/폐기) |
+| **`404`** | **`TAG_NOT_FOUND`** | `TAG_NOT_FOUND` | 등록되지 않은 NFC 스마트카드 식별자(UID)입니다. | **미등록 태그**: DB `nfc_tags`에 존재하지 않는 UID |
+| **`409`** | **`COUNTER_REPLAY`**| `COUNTER_REPLAY`| 이전에 이미 사용된 일회용 보안 카운터입니다 (복제 의심). | **복제/재사용 공격 차단**: 이전 카운터 이하의 값이 재전송됨 |
+| **`500`** | **`SERVER_ERROR`** | `SERVER_ERROR` | 서버 내부 처리 중 오류가 발생했습니다. | **서버 에러**: 데이터베이스 통신 장애 또는 KEK 복호화 실패 |
+
+---
+
+## 3. AUTH API (`/functions/v1/auth`) - TLV + RFC 4226 HOTP
+
+스마트카드로부터 단 하나의 BER-TLV 파라미터를 수신하여, IETF 표준 **RFC 4226 HOTP (HMAC-SHA-1)** 알고리즘으로 동적 일회용 암호를 검증하고 카운터 리플레이 공격을 방어합니다.
+
+### 3.1 엔드포인트 정보
+* **엔드포인트 URL**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
+* **HTTP 메서드**: `GET`, `POST`
+* **응답 포맷**: **JSON Only** (`application/json`)
+* **비밀키 ($K$)**: DB `nfc_keys`에 보관된 해당 UID 매핑 16바이트(AES-128) 대칭키 사용 (KEK 봉투 복호화)
+
+### 3.2 단일 파라미터 BER-TLV 규격
+
+`data=` 키나 `format=json` 없이 **물음표(`?`) 뒤에 오직 TLV 페이로드 문자열만 직접 전달**하는 초간결 방식을 기본 지원합니다:
+
+| 태그 (Tag) | 명칭 | 길이 (Length) | 데이터 형식 (Value) | 상세 설명 |
+| :---: | :---: | :---: | :---: | :--- |
+| **`DF61`** | **id** | **16바이트** (32 Hex)<br/>*(7B/8B 호환)* | Hex 바이트열 | 스마트카드 하드웨어 고유 식별자 (UID, 예: `0102030405060708090A0B0C0D0E0F10`) |
+| **`DF62`** | **otp** | **3바이트** (6 Hex) | **Packed BCD** | RFC 4226 HOTP 6자리 일회용 비밀번호 (예: `328482`) |
+| **`DF63`** | **count** | **3바이트** (6 Hex)<br/>*(1B~4B 호환)* | Big-Endian 정수 바이트열 | **0부터 시작**하여 탭할 때마다 1씩 증가하는 하드웨어 보안 카운터 |
+
+#### BER-TLV 패킹 구조 예시
+```text
+DF61 10 0102030405060708090A0B0C0D0E0F10  -> [DF61] 16B 스마트카드 UID
+DF62 03 328482                            -> [DF62] 3B Packed BCD OTP ("328482")
+DF63 03 000000                            -> [DF63] 3B 카운터 (Counter = 0)
+```
+$\Rightarrow$ **단일 TLV 페이로드**: `DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000`
+
+### 3.3 카운터 0 시작 및 리플레이 방어 규칙
+1. **카운터 0 허용 (최초 1회)**:  
+   신규 카드의 최초 인증(`total_scans = 0`) 시 카운터 0이 정상 승인됩니다.
+2. **동일 카운터 재사용 차단 (`COUNTER_REPLAY`)**:  
+   이미 사용된 카운터(즉, `counter <= last_counter`) 재전송 시 `409 COUNTER_REPLAY`로 즉시 차단됩니다.
+
+### 3.4 호출 예시
+
+```bash
+# 1. 초간결 GET 호출 (data= 없이 TLV 직접 전달)
+curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"
+
+# 2. 호환 GET 호출 (data= 키 사용)
+curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth?data=DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"
+
+# 3. POST JSON 호출
+curl -X POST "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth" \
+  -H "Content-Type: application/json" \
+  -d '{"data": "DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000"}'
 ```
 
 ---
 
-## 3. 2) NFC API (`/functions/v1/nfc`) - NTAG 424 DNA SDM CMAC
+## 4. NFC API (`/functions/v1/nfc`) - NTAG 424 DNA SDM CMAC
 
-NXP NTAG 424 DNA 보안 칩의 SDM(Secure Dynamic Messaging) 기능을 사용하여, 태깅 시 칩 내부에서 계산된 AES-128-CMAC 동적 서명을 검증합니다.
+NXP NTAG 424 DNA 보안 태그의 SDM(Secure Dynamic Messaging) AES-128-CMAC 서명을 검증하는 전용 순수 JSON API입니다.
 
-### 3.1 엔드포인트 정보
-* **엔드포인트**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
+### 4.1 엔드포인트 정보
+* **엔드포인트 URL**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
 * **HTTP 메서드**: `GET`
-* **암호화 표준**: NIST SP 800-38B (AES-128-CMAC)
-* **세션키 유도**: SV2 표준 벡터 `3CC300010080` + `UID` + `Counter` 결합 후 CMAC 연산
-* **서명 절단(Truncation)**: 계산된 16바이트 CMAC에서 홀수 인덱스 8바이트를 추출하여 16자리 Hex 생성
+* **응답 포맷**: **JSON Only** (`application/json`)
+* **암호화 표준**: NIST SP 800-38B (AES-128-CMAC 동적 서명)
 
-### 3.2 쿼리 파라미터 규격
+### 4.2 쿼리 파라미터 규격
 
 | 파라미터 | 필수 여부 | 형식 / 길이 | 설명 |
 | :---: | :---: | :---: | :--- |
 | **`uid`** | **필수** | 14자리 Hex (7B) | 태그 하드웨어 고유 식별자 (예: `04DE5F1EACC040`) |
-| **`cnt`** | **필수** | **6자리 Hex (3B)** | NTAG 424 DNA 3바이트 Big-Endian 트랜잭션 카운터 (예: `00003D`) |
-| **`mac`** | **필수** | 16자리 Hex (8B) | 태그가 동적 생성한 AES-128-CMAC 서명 (예: `94EED9EE65337086`) |
+| **`cnt`** | **필수** | **6자리 Hex (3B)** | NTAG 424 DNA 3바이트 Big-Endian 카운터 (예: `00003D`) |
+| **`mac`** | **필수** | 16자리 Hex (8B) | 칩 내부에서 계산된 8바이트 Truncated CMAC (`MACt`) |
 | **`kid`** | 선택 | 정수 (기본값: 1) | DB `nfc_keys` 테이블의 키 인덱스 번호 |
-| **`format`** | 선택 | 문자열 (`json`) | 생략 시 HTML 웹 UI 반환, `json` 설정 시 JSON 반환 |
 
-### 3.3 요청 예시
+### 4.3 호출 예시
 
 ```bash
-# JSON 응답 요청
-curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc?uid=04DE5F1EACC040&cnt=00003D&mac=94EED9EE65337086&kid=1&format=json"
-
-# 모바일 웹 브라우저 태깅 시 (HTML 렌더링)
+# NFC 태그 CMAC 검증 GET 호출
 curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc?uid=04DE5F1EACC040&cnt=00003D&mac=94EED9EE65337086&kid=1"
 ```
-
-### 3.4 응답 예시
 
 #### 성공 응답 (HTTP 200 OK)
 ```json
 {
   "success": true,
   "resultCode": "SUCCESS",
+  "authType": "CMAC",
   "uid": "04DE5F1EACC040",
   "counter": 61,
   "tagName": "NFC 보안 인증 테스트 태그",
@@ -195,47 +206,37 @@ curl "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc?uid=04DE5F1EACC0
 }
 ```
 
-#### 서명 불일치 응답 (HTTP 401 Unauthorized)
+#### 서명 불일치 에러 응답 (HTTP 401 Unauthorized)
 ```json
 {
   "success": false,
   "resultCode": "INVALID_MAC",
+  "authType": "CMAC",
+  "message": "NFC 암호화 동적 서명 검증에 실패했습니다 (위조 의심).",
+  "error": {
+    "code": "INVALID_MAC",
+    "message": "NFC 암호화 동적 서명 검증에 실패했습니다 (위조 의심)."
+  },
   "uid": "04DE5F1EACC040",
   "counter": 61,
-  "tagName": "NFC 보안 인증 테스트 태그",
-  "message": "NFC 보안 서명 검증에 실패했습니다. (위조 의심)"
+  "tagName": "NFC 보안 인증 테스트 태그"
 }
 ```
 
 ---
 
-## 4. 인증 결과 코드 (Result Code) 정의
-
-두 API 모두 동일한 표준 결과 코드를 반환합니다:
-
-| 결과 코드 | HTTP 상태 | 설명 | 대응 조치 |
-| :--- | :---: | :--- | :--- |
-| **`SUCCESS`** | `200` | 모든 암호화 검증 및 카운터 검증 통과 (정품 확인) | 정품 인증 화면 표시 및 제품 상세정보 제공 |
-| **`COUNTER_REPLAY`** | `409` | 이전 카운터와 동일하거나 작은 카운터 재전송 감지 | 복제 의심 경고 표시 (리플레이 공격 차단) |
-| **`INVALID_OTP`** | `401` | [auth 전용] RFC 4226 HOTP 일회용 비밀번호 불일치 | 위조 의심 경고 표시 (불법 복제/임의 생성 차단) |
-| **`INVALID_MAC`** | `401` | [nfc 전용] AES-128-CMAC 서명 불일치 | 위조 의심 경고 표시 (칩 서명 변조 차단) |
-| **`TAG_NOT_FOUND`** | `404` | DB `nfc_tags`에 등록되지 않은 UID | 미등록 태그 경고 표시 |
-| **`TAG_INACTIVE`** | `403` | 태그 또는 키의 상태가 `ACTIVE`가 아님 (정지/폐기) | 비활성화 태그 안내 및 고객센터 문의 유도 |
-| **`BAD_REQUEST`** | `400` | 필수 파라미터 누락, Hex/TLV 포맷 규격 오류 | 클라이언트 전송 파라미터 규격 점검 |
-| **`SERVER_ERROR`** | `500` | 데이터베이스 연결 실패 또는 KEK 복호화 실패 | 시스템 관리자 및 환경변수(KEK) 점검 |
-
----
-
-## 5. 두 API의 특징 비교 및 선택 가이드
+## 5. 두 API 비교 및 요약
 
 | 비교 항목 | **AUTH API (`/functions/v1/auth`)** | **NFC API (`/functions/v1/nfc`)** |
 | :--- | :--- | :--- |
-| **전송 파라미터** | **단 1개** (`?data=DF61...` BER-TLV 포맷) | **4개** (`uid`, `cnt`, `mac`, `kid` 개별 쿼리) |
-| **보안 알고리즘** | **RFC 4226 HOTP** (HMAC-SHA-1) | **NIST SP 800-38B** (AES-128-CMAC SDM) |
-| **카운터 시작** | **0부터 시작** (RFC 4226 표준) | 1부터 시작 (3바이트 Big-Endian Hex) |
+| **응답 포맷** | **100% 순수 JSON API** | **100% 순수 JSON API** |
+| **전송 파라미터** | **단 1개** (초간결 `?DF61...` BER-TLV 포맷) | **4개** (`uid`, `cnt`, `mac`, `kid` 개별 쿼리) |
+| **UID 규격** | **16바이트** (32 Hex) *(기본 스마트카드 규격)* | **7바이트** (14 Hex) *(NTAG 424 DNA 규격)* |
+| **OTP/MAC 규격** | **3바이트 Packed BCD** (`DF62 03 328482`) | **8바이트 Truncated CMAC** (`16자리 Hex`) |
+| **카운터 규격** | **0부터 시작** (3바이트 / 6 Hex) | **1부터 시작** (3바이트 / 6 Hex) |
+| **암호화 알고리즘** | **RFC 4226 HOTP** (HMAC-SHA-1) | **NIST SP 800-38B** (AES-128-CMAC SDM) |
 | **호환 하드웨어** | 일반 스마트카드, 자바카드, IoT 보안 칩 | NXP NTAG 424 DNA 전용 |
-| **키 관리 방식** | DB `nfc_keys` AES-128 대칭키 (KEK 봉투 암호화) | DB `nfc_keys` AES-128 대칭키 (KEK 봉투 암호화) |
-| **적합한 사용처** | 스마트카드 앱릿, 간결한 NDEF URL 구성, OTP 인증 | NXP 정품 NTAG 칩 직결 웹 URL 태깅 |
+| **에러 응답 규격** | 구조화된 `error` 객체 및 `message` 표준 제공 | 구조화된 `error` 객체 및 `message` 표준 제공 |
 
 ---
 

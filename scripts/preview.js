@@ -23,10 +23,11 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const response = await fetch(target);
+      const contentType = response.headers.get('content-type') || 'application/json; charset=utf-8';
       const text = await response.text();
 
       res.writeHead(response.status, {
-        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Type': contentType,
         'Cache-Control': 'no-store'
       });
       res.end(text);
