@@ -64,7 +64,7 @@ export function decryptNfcKey(cipherHex, ivHex, tagHex, kekHex) {
 }
 
 // ============================================================================
-// 2. NFC Authentication SDMMAC (NIST SP 800-38B AES-128-CMAC)
+// 2. NFC Authentication SDMMAC (NIST SP 800-38B AES-128-CMAC) - v1
 // ============================================================================
 
 export function aes128EcbEncryptBlock(key, block) {
@@ -76,7 +76,7 @@ export function aes128EcbEncryptBlock(key, block) {
 }
 
 export function generateCmacSubkeys(key) {
-  const zeroBlock = Buffer.alloc(16, 0);
+  const zeroBlock = Buffer.alloc(16);
   const L = aes128EcbEncryptBlock(key, zeroBlock);
   const constRb = 0x87;
 
@@ -134,7 +134,7 @@ export function calculateAes128Cmac(key, message) {
     }
   }
 
-  let X = Buffer.alloc(blockSize, 0);
+  let X = Buffer.alloc(blockSize);
   for (let i = 0; i < n - 1; i++) {
     const M_i = message.subarray(i * blockSize, (i + 1) * blockSize);
     const Y = Buffer.alloc(blockSize);
@@ -165,38 +165,22 @@ export function truncateMac(cmac16Bytes) {
 
 export function buildSV2(uid, counterBytes) {
   if (uid.length !== 7) throw new Error('UID must be 7 bytes');
-  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes for SV2');
+  if (counterBytes.length !== 3) throw new Error('Counter must be 3 bytes');
   const header = Buffer.from([0x3C, 0xC3, 0x00, 0x01, 0x00, 0x80]);
   return Buffer.concat([header, uid, counterBytes]);
 }
 
-/**
- * 카운터 파싱 함수: 3바이트(6자리 Hex) Big-Endian 지원
- */
-export function parseCounterToLsbBytes(counterInput) {
-  if (typeof counterInput === 'number' || typeof counterInput === 'bigint') {
-    const num = Number(counterInput);
-    const buf = Buffer.alloc(3);
-    buf.writeUIntLE(num & 0xFFFFFF, 0, 3);
-    return {
-      lsbBytes: buf,
-      lsb: buf,
-      intValue: num
-    };
-  }
-
-  const cleanHex = counterInput.trim().replace(/^0x/i, '');
+export function parseCounterToLsbBytes(cntHex) {
+  const cleanHex = cntHex.trim().replace(/^0x/i, '');
   if (cleanHex.length !== 6) {
     throw new Error(`Counter hex must be 6 characters (3 bytes), got: ${cleanHex}`);
   }
 
-  // Big-Endian 파싱 (예: "00003D" -> 61)
   const intValue = parseInt(cleanHex, 16);
   if (isNaN(intValue)) {
     throw new Error(`Invalid counter hex: ${cleanHex}`);
   }
 
-  // SV2 세션 유도 벡터에 전달할 3바이트 LSB-first 버퍼 생성
   const lsb = Buffer.alloc(3);
   lsb.writeUIntLE(intValue & 0xFFFFFF, 0, 3);
 
@@ -207,9 +191,6 @@ export function parseCounterToLsbBytes(counterInput) {
   };
 }
 
-/**
- * NFC Authentication SDMMAC 검증 함수 (3바이트 Big-Endian 카운터 규격)
- */
 export function verifyNfcAuthMac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
   const uid = hexToBytes(uidHex);
   const fileReadKey = hexToBytes(fileReadKeyHex);
@@ -230,4 +211,204 @@ export function verifyNfcAuthMac({ uidHex, cntHex, macHex, fileReadKeyHex }) {
     counter: parsedCnt.intValue,
     fullCmac: fullCmacHex
   };
+}
+
+// ============================================================================
+// 3. RFC 4226 HOTP (HMAC-based One-Time Password) - v2
+// ============================================================================
+
+/**
+ * RFC 4226 HOTP 생성 함수
+ */
+export function calculateHotp(keyBytes, counter, digits = 6) {
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter), 0);
+
+  const hmac = crypto.createHmac('sha1', keyBytes);
+  hmac.update(counterBuffer);
+  const hs = hmac.digest();
+
+  const offset = hs[19] & 0x0F;
+  const binCode = (
+    ((hs[offset] & 0x7F) << 24) |
+    ((hs[offset + 1] & 0xFF) << 16) |
+    ((hs[offset + 2] & 0xFF) << 8) |
+    (hs[offset + 3] & 0xFF)
+  ) >>> 0;
+
+  const code6 = binCode % 1000000;
+  const code8 = binCode % 100000000;
+
+  return {
+    otp6: code6.toString().padStart(6, '0'),
+    otp8: code8.toString().padStart(8, '0'),
+    code: digits === 8 ? code8 : code6,
+    binCode,
+    fullHash: hs.toString('hex').toUpperCase()
+  };
+}
+
+/**
+ * HOTP 검증 함수
+ */
+export function verifyHotp(keyBytes, counter, receivedOtp) {
+  const hotp = calculateHotp(keyBytes, counter);
+  const cleanReceived = String(receivedOtp).trim();
+
+  const isMatch6 = timingSafeEqualStr(cleanReceived, hotp.otp6);
+  const isMatch8 = timingSafeEqualStr(cleanReceived, hotp.otp8);
+
+  const numReceived = parseInt(cleanReceived, 10);
+  const isMatchNum = !isNaN(numReceived) && (
+    numReceived === parseInt(hotp.otp6, 10) ||
+    numReceived === parseInt(hotp.otp8, 10)
+  );
+
+  return {
+    isValid: isMatch6 || isMatch8 || isMatchNum,
+    expectedOtp6: hotp.otp6,
+    expectedOtp8: hotp.otp8
+  };
+}
+
+// ============================================================================
+// 4. BER-TLV (ISO 7816-4) 파서 및 빌더 - v2
+// 지원 태그: DF61 (id), DF62 (otp), DF63 (count)
+// ============================================================================
+
+export function parseBerTlv(rawHexInput) {
+  const cleanHex = rawHexInput.trim().replace(/^0x/i, '').replace(/\s+/g, '');
+  if (cleanHex.length < 4) {
+    throw new Error('TLV 데이터 길이가 너무 짧습니다.');
+  }
+
+  const items = new Map();
+  let offset = 0;
+  const totalLen = cleanHex.length;
+
+  while (offset < totalLen) {
+    if (offset + 2 > totalLen) break;
+
+    const firstTagByte = parseInt(cleanHex.substring(offset, offset + 2), 16);
+    let tag;
+
+    if ((firstTagByte & 0x1F) === 0x1F) {
+      if (offset + 4 > totalLen) throw new Error(`태그 헤더가 잘렸습니다: offset ${offset}`);
+      tag = cleanHex.substring(offset, offset + 4).toUpperCase();
+      offset += 4;
+    } else {
+      tag = cleanHex.substring(offset, offset + 2).toUpperCase();
+      offset += 2;
+    }
+
+    if (offset >= totalLen) throw new Error(`태그(${tag}) 뒤에 길이 필드가 누락되었습니다.`);
+
+    const firstLenByte = parseInt(cleanHex.substring(offset, offset + 2), 16);
+    offset += 2;
+
+    let length;
+    if (firstLenByte < 0x80) {
+      length = firstLenByte;
+    } else if (firstLenByte === 0x81) {
+      if (offset + 2 > totalLen) throw new Error(`태그(${tag}) 길이(0x81) 잘림`);
+      length = parseInt(cleanHex.substring(offset, offset + 2), 16);
+      offset += 2;
+    } else if (firstLenByte === 0x82) {
+      if (offset + 4 > totalLen) throw new Error(`태그(${tag}) 길이(0x82) 잘림`);
+      length = parseInt(cleanHex.substring(offset, offset + 4), 16);
+      offset += 4;
+    } else {
+      throw new Error(`지원하지 않는 TLV 길이: 0x${firstLenByte.toString(16)}`);
+    }
+
+    const valueHexChars = length * 2;
+    if (offset + valueHexChars > totalLen) {
+      throw new Error(`태그(${tag})의 값 데이터가 명시된 길이(${length}B)보다 부족합니다.`);
+    }
+
+    const valueHex = cleanHex.substring(offset, offset + valueHexChars).toUpperCase();
+    offset += valueHexChars;
+
+    items.set(tag, { tag, length, valueHex });
+  }
+
+  return items;
+}
+
+export function parseAuthTlv(rawHexInput) {
+  const items = parseBerTlv(rawHexInput);
+
+  const itemDf61 = items.get('DF61');
+  const itemDf62 = items.get('DF62');
+  const itemDf63 = items.get('DF63');
+
+  if (!itemDf61) throw new Error('필수 TLV 태그 DF61 (id)가 누락되었습니다.');
+  if (!itemDf62) throw new Error('필수 TLV 태그 DF62 (otp)가 누락되었습니다.');
+  if (!itemDf63) throw new Error('필수 TLV 태그 DF63 (count)가 누락되었습니다.');
+
+  const id = itemDf61.valueHex.toUpperCase();
+
+  const cntBytes = hexToBytes(itemDf63.valueHex);
+  let counter = 0;
+  const isAsciiDigits = cntBytes.length > 0 && Array.from(cntBytes).every(b => b >= 0x30 && b <= 0x39);
+  if (isAsciiDigits) {
+    counter = parseInt(Buffer.from(cntBytes).toString('ascii'), 10);
+  } else {
+    for (let i = 0; i < cntBytes.length; i++) {
+      counter = (counter * 256) + cntBytes[i];
+    }
+  }
+
+  const otpBytes = hexToBytes(itemDf62.valueHex);
+  let otpStr = '';
+  const isOtpAscii = otpBytes.length >= 6 && Array.from(otpBytes).every(b => b >= 0x30 && b <= 0x39);
+  if (isOtpAscii) {
+    otpStr = Buffer.from(otpBytes).toString('ascii');
+  } else if (otpBytes.length === 4) {
+    let code = 0;
+    for (let i = 0; i < 4; i++) {
+      code = (code << 8) | otpBytes[i];
+    }
+    otpStr = (code % 1000000).toString().padStart(6, '0');
+  } else {
+    otpStr = itemDf62.valueHex;
+  }
+
+  return {
+    rawHex: rawHexInput.trim().toUpperCase(),
+    id,
+    otp: otpStr,
+    counter,
+    items
+  };
+}
+
+export function buildTlvPayload(id, otp, counter, otpFormat = 'ascii') {
+  const idHex = id.trim().replace(/^0x/i, '').toUpperCase();
+  const idLen = idHex.length / 2;
+  const tlvId = `DF61${idLen.toString(16).padStart(2, '0').toUpperCase()}${idHex}`;
+
+  let otpValueHex = '';
+  const otpStr = String(otp).trim();
+  if (otpFormat === 'ascii') {
+    otpValueHex = Buffer.from(otpStr, 'ascii').toString('hex').toUpperCase();
+  } else if (otpFormat === 'binary') {
+    const num = parseInt(otpStr, 10);
+    const buf = Buffer.alloc(4);
+    buf.writeUInt32BE(num, 0);
+    otpValueHex = buf.toString('hex').toUpperCase();
+  } else {
+    otpValueHex = otpStr.toUpperCase();
+  }
+  const otpLen = otpValueHex.length / 2;
+  const tlvOtp = `DF62${otpLen.toString(16).padStart(2, '0').toUpperCase()}${otpValueHex}`;
+
+  const cntBuf = Buffer.alloc(3);
+  cntBuf[0] = (counter >> 16) & 0xFF;
+  cntBuf[1] = (counter >> 8) & 0xFF;
+  cntBuf[2] = counter & 0xFF;
+  const cntHex = cntBuf.toString('hex').toUpperCase();
+  const tlvCnt = `DF6303${cntHex}`;
+
+  return `${tlvId}${tlvOtp}${tlvCnt}`;
 }

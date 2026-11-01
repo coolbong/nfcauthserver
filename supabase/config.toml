@@ -11,5 +11,9 @@ max_rows = 1000
 port = 54322
 
 [functions.nfc]
-# NFC 탭 시 스마트폰 브라우저에서 직접 GET 요청을 보내므로 JWT 인증을 비활성화합니다.
+# v1 SDM NFC 태그 검증 엔드포인트
+verify_jwt = false
+
+[functions.auth]
+# v2 TLV (DF61, DF62, DF63) + HOTP 인증 엔드포인트
 verify_jwt = false

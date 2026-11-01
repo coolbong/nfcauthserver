@@ -9,7 +9,11 @@ import {
   truncateMac,
   verifyNfcAuthMac,
   encryptNfcKey,
-  decryptNfcKey
+  decryptNfcKey,
+  calculateHotp,
+  verifyHotp,
+  parseAuthTlv,
+  buildTlvPayload
 } from './crypto.js';
 
 console.log('🧪 [NFC Authentication 암호화 표준 + 3바이트 카운터 + DB 키 암호화 검증 시작]\n');
@@ -93,4 +97,22 @@ assert.throws(() => {
 }, /Counter hex must be 6 characters/);
 console.log('  ✅ 3바이트(6자리 Hex) 규격 외 입력 거부 확인!\n');
 
-console.log('🎉 [NFC Authentication 3바이트 카운터 및 모든 암호화 테스트 100% 통과!]');
+// 5. v2 BER-TLV (DF61, DF62, DF63) 및 HOTP (RFC 4226) 검증 테스트
+console.log('5. v2 BER-TLV + HOTP (RFC 4226) 통합 검증 테스트:');
+const rfcSecret = Buffer.from('12345678901234567890', 'ascii');
+const hotp0 = calculateHotp(rfcSecret, 0, 6);
+assert.strictEqual(hotp0.otp6, '755224');
+const hotp1 = calculateHotp(rfcSecret, 1, 6);
+assert.strictEqual(hotp1.otp6, '287082');
+console.log('  ✅ RFC 4226 공식 테스트 벡터 (C=0 -> 755224, C=1 -> 287082) 통과!');
+
+const v2Payload = buildTlvPayload('04DE5F1EACC040', hotp1.otp6, 1, 'ascii');
+const v2Parsed = parseAuthTlv(v2Payload);
+assert.strictEqual(v2Parsed.id, '04DE5F1EACC040');
+assert.strictEqual(v2Parsed.otp, '287082');
+assert.strictEqual(v2Parsed.counter, 1);
+const v2Verified = verifyHotp(rfcSecret, v2Parsed.counter, v2Parsed.otp);
+assert.strictEqual(v2Verified.isValid, true);
+console.log('  ✅ 단일 TLV 파라미터 (DF61/DF62/DF63) 패킹 & 언패킹 & HOTP 검증 성공!\n');
+
+console.log('🎉 [NFC Authentication v1 SDM & v2 HOTP 모든 암호화 테스트 100% 통과!]');
