@@ -117,7 +117,9 @@
 * **엔드포인트 URL**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
 * **HTTP 메서드**: `GET`, `POST`
 * **응답 포맷**: **JSON Only** (`application/json`)
-* **비밀키 ($K$)**: DB `nfc_keys`에 보관된 해당 UID 매핑 16바이트(AES-128) 대칭키 사용 (KEK 봉투 복호화)
+* **비밀키 ($K$)**: DB `nfc_keys`에 보관된 해당 UID 매핑 대칭키 사용 (RFC 4226 표준 20바이트 및 16바이트 모두 지원, KEK 봉투 복호화)
+  - `key_index: 1`: NTAG 424 DNA SDM용 16바이트 AES 대칭키
+  - `key_index: 2`: 스마트카드 RFC 4226 표준 20바이트 (160비트) HMAC-SHA1 보안 키
 
 ### 3.2 단일 파라미터 BER-TLV 규격
 
