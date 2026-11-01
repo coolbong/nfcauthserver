@@ -1,0 +1,62 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/auth",
+      "destination": "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth"
+    },
+    {
+      "source": "/nfc",
+      "destination": "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc"
+    },
+    {
+      "source": "/functions/v1/auth",
+      "destination": "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth"
+    },
+    {
+      "source": "/functions/v1/nfc",
+      "destination": "https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    },
+    {
+      "source": "/(auth|nfc|functions/(.*))",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}
