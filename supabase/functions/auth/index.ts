@@ -125,6 +125,72 @@ Deno.serve(async (req: Request) => {
   };
 
   try {
+    // 0. 관리자 카운터 초기화 기능 (?action=reset 또는 ?reset=true 또는 /auth/reset)
+    if (url.searchParams.get('action') === 'reset' || url.searchParams.get('reset') === 'true' || url.pathname.endsWith('/reset')) {
+      const targetUid = (url.searchParams.get('uid') || '').trim().toUpperCase();
+      let queryTags = supabase.from('nfc_tags').update({
+        last_counter: 0,
+        total_scans: 0,
+        first_verified_at: null
+      });
+      let queryLogs = supabase.from('nfc_scan_logs').delete();
+
+      if (targetUid) {
+        queryTags = queryTags.ilike('uid', targetUid);
+        queryLogs = queryLogs.ilike('uid', targetUid);
+      } else {
+        queryTags = queryTags.neq('uid', '');
+        queryLogs = queryLogs.neq('id', 0);
+      }
+
+      const { error: resetError } = await queryTags;
+      if (resetError) {
+        console.error('Reset error:', resetError);
+        return sendResponse(500, 'SERVER_ERROR', { message: '카운터 초기화 중 DB 오류가 발생했습니다.' });
+      }
+      await queryLogs;
+
+      const { data: updatedTags } = await supabase
+        .from('nfc_tags')
+        .select('uid, tag_name, key_index, last_counter, total_scans')
+        .order('key_index');
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: targetUid ? `UID(${targetUid}) 카운터가 0으로 초기화되었습니다.` : '모든 태그의 카운터가 0으로 초기화되었습니다.',
+        tags: updatedTags || []
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store, no-cache, must-revalidate',
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, POST, OPTIONS',
+          'access-control-allow-headers': '*'
+        }
+      });
+    }
+
+    // 0-1. 실시간 태그 상태 조회 기능 (?action=status)
+    if (url.searchParams.get('action') === 'status') {
+      const { data: currentTags } = await supabase
+        .from('nfc_tags')
+        .select('uid, tag_name, key_index, last_counter, total_scans, first_verified_at, status')
+        .order('key_index');
+
+      return new Response(JSON.stringify({
+        success: true,
+        tags: currentTags || []
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store, no-cache, must-revalidate',
+          'access-control-allow-origin': '*'
+        }
+      });
+    }
+
     // 1. 단일 TLV 파라미터 추출 (GET / POST 다중 포맷 유연 지원)
     let rawTlv: string | null = null;
 
