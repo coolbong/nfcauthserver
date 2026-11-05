@@ -1,8 +1,10 @@
 # NFC Authentication 보안 인증 시스템
 
-동적 보안 메시징(SDM) 프로토콜을 지원하는 보안 NFC 태그를 기반으로, 스마트폰 NFC 탭 시 전달되는 데이터(`uid`, `cnt`, `mac`, `kid`)를 실시간 검증하고 모바일 정품 인증 화면을 제공하는 **Supabase 백엔드 & GitHub Pages 정품 인증 시스템**입니다.
+동적 보안 메시징(SDM) 프로토콜을 지원하는 보안 NFC 태그를 기반으로, 스마트폰 NFC 탭 시 전달되는 데이터(`uid`, `cnt`, `mac`, `kid` 또는 단일 BER-TLV HOTP)를 실시간 검증하고 모바일 정품 인증 화면을 제공하는 **Supabase 백엔드 & Vercel 정품 인증 시스템**입니다.
 
-- 🌐 **공식 정품 인증 웹페이지 (GitHub Pages)**: [https://coolbong.github.io/nfcauthserver/](https://coolbong.github.io/nfcauthserver/)
+- 📘 **[솔루션 소개서 (비즈니스/사용자 관점)](docs/SOLUTION_OVERVIEW.md)**: 기본 인증 흐름, 소비자 및 도입 기업 관점의 장점 총정리
+- 🌐 **공식 정품 인증 웹페이지**: [https://nfcauth.vercel.app/](https://nfcauth.vercel.app/)
+- 🔄 **카운터 원클릭 리셋 관리 허브**: [https://nfcauth.vercel.app/reset](https://nfcauth.vercel.app/reset)
 - ⚡ **Supabase Edge Function API 엔드포인트**:
   * **AUTH API (단일 TLV + HOTP)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
   * **NFC API (SDM AES-128-CMAC)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`
