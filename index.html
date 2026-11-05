@@ -188,8 +188,8 @@
       const product = kind === 'genuine' || kind === 'recheck';
       return [
         ...(product ? [
-          p.artist ? ['아티스트', p.artist] : ['브랜드', p.brand],
-          p.member ? ['멤버', p.member] : ['모델', p.model || data.tagName],
+          p.actor ? ['배우', p.actor] : p.artist ? ['아티스트', p.artist] : ['브랜드', p.brand],
+          p.member ? ['멤버', p.member] : ['모델', !p.actor && (p.model || data.tagName)],
           ['앨범', album],
         ] : []),
         ...(kind === 'genuine' ? [
