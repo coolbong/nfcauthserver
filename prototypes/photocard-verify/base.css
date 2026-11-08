@@ -1,0 +1,13 @@
+@font-face { font-family: Geist; src: url(/fonts/Geist-Variable.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: Pretendard; src: url(/fonts/PretendardVariable.woff2) format('woff2'); font-weight: 45 920; font-display: swap; }
+:root { --curve: cubic-bezier(0.22, 1, 0.36, 1); --font: Geist, Pretendard, -apple-system, system-ui, sans-serif; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font); min-height: 100dvh; -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+h1, h2 { text-wrap: balance; }
+p { text-wrap: pretty; }
+.brand { font-size: 0.75rem; line-height: 1rem; font-weight: 500; }
+.rise { animation: rise 700ms var(--curve) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } }

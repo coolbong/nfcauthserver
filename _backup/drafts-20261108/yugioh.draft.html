@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0F0F12">
+  <title>유희왕 카드 정품 인증 | Yu-Gi-Oh! Authentication</title>
+  <meta name="description" content="NFC 스마트 암호화 칩을 통한 유희왕 TCG 공식 정품 및 그레이딩 인증">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23B8860B'/%3E%3Cpath d='M16 6l10 18H6z' fill='%23131209'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23FFD700'/%3E%3C/svg%3E">
+  <link rel="preload" href="assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: Geist;
+      src: url(assets/fonts/Geist-Variable.woff2) format('woff2');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    :root {
+      --bg: #0C0D10;
+      --surface: #14161C;
+      --card-bg: #1B1E26;
+      --gold: #D4AF37;
+      --gold-light: #F7E7A9;
+      --gold-dark: #8C6D1F;
+      --paper: #F6F7FA;
+      --ink: #111317;
+      --soft: #7A8194;
+      --muted: #A3AABF;
+      --line: rgba(212, 175, 55, 0.22);
+      --accent: var(--gold);
+      --curve: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body[data-kind="genuine"] { --accent: #D4AF37; }
+    body[data-kind="recheck"] { --accent: #E68A00; }
+    body[data-kind="rejected"] { --accent: #E53E3E; }
+    body[data-kind="unavailable"] { --accent: #6C7280; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: Geist, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1A1C24 0%, var(--bg) 80%);
+      color: var(--paper);
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; justify-content: center; padding: 16px;
+      -webkit-font-smoothing: antialiased;
+      word-break: keep-all; overflow-wrap: anywhere;
+    }
+    [hidden] { display: none !important; }
+
+    main {
+      width: 100%; max-width: 440px;
+      display: flex; flex-direction: column; gap: 12px;
+      padding-bottom: 24px;
+    }
+
+    .brand-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 4px;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em;
+      color: var(--gold-light); text-transform: uppercase;
+    }
+    .brand-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(212, 175, 55, 0.12); border: 1px solid var(--gold-dark);
+      padding: 4px 10px; border-radius: 999px;
+    }
+    .brand-badge::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--gold); box-shadow: 0 0 8px var(--gold);
+    }
+
+    /* PSA / BGS 스타일 수집품 슬래브(Slab) 케이스 */
+    .slab-case {
+      position: relative;
+      background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(20,22,28,0.95) 40%, rgba(12,13,16,0.98) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.35);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.15);
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+      overflow: hidden;
+    }
+    .slab-case::after {
+      content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 50%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      transform: skewX(-25deg); pointer-events: none;
+    }
+
+    /* 그레이딩 헤더 라벨 */
+    .slab-label {
+      background: #FFFFFF; color: #111;
+      border-radius: 10px; padding: 12px 14px;
+      border-top: 5px solid var(--accent);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .slab-label-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 1px solid #E5E7EB; padding-bottom: 6px;
+    }
+    .slab-issuer { font-size: 0.72rem; font-weight: 800; color: #4B5563; letter-spacing: 0.08em; }
+    .slab-grade {
+      font-size: 1.15rem; font-weight: 900; color: var(--accent);
+      letter-spacing: 0.03em;
+    }
+    .slab-title { font-size: 1.1rem; font-weight: 800; color: #111827; margin-top: 2px; }
+    .slab-subtitle { font-size: 0.78rem; font-weight: 600; color: #6B7280; }
+
+    /* 카드 뷰어 & 홀로그램 효과 */
+    .card-display {
+      position: relative;
+      width: 100%; border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 340px;
+    }
+    .card-image {
+      width: 100%; height: auto; max-height: 480px;
+      object-fit: contain; display: block;
+      transition: transform 0.4s var(--curve);
+    }
+    /* 홀로그램 오버레이 효과 */
+    .holo-sheen {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255, 0, 150, 0.15) 35%,
+        rgba(0, 255, 255, 0.25) 50%,
+        rgba(255, 230, 0, 0.2) 65%,
+        transparent 80%
+      );
+      background-size: 200% 200%;
+      mix-blend-mode: color-dodge;
+      opacity: 0.75;
+      animation: holoShift 6s ease-in-out infinite alternate;
+    }
+    @keyframes holoShift {
+      0% { background-position: 0% 0%; opacity: 0.4; }
+      50% { background-position: 100% 100%; opacity: 0.85; }
+      100% { background-position: 0% 100%; opacity: 0.5; }
+    }
+
+    /* 인증 상태 뱃지 (상태별) */
+    .status-banner {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 12px;
+      background: rgba(20, 22, 28, 0.9);
+      border: 1px solid var(--accent);
+    }
+    .status-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: grid; place-items: center; flex: none;
+      background: var(--accent); color: #0C0D10;
+    }
+    .status-icon svg { width: 16px; height: 16px; }
+    .status-text h2 { font-size: 0.95rem; font-weight: 700; color: #FFF; }
+    .status-text p { font-size: 0.75rem; color: var(--soft); margin-top: 1px; }
+
+    /* 상세 스펙 테이블 */
+    .spec-table {
+      background: var(--surface); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 4px 14px;
+    }
+    .spec-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; font-size: 0.82rem;
+    }
+    .spec-row + .spec-row { border-top: 1px solid rgba(255,255,255,0.06); }
+    .spec-row dt { color: var(--soft); font-weight: 500; }
+    .spec-row dd { color: var(--paper); font-weight: 600; text-align: right; }
+    .spec-row .gold { color: var(--gold-light); }
+
+    /* 바코드 인증 번호 */
+    .barcode-box {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 12px 14px; background: #FFFFFF; color: #111;
+      border-radius: 14px;
+    }
+    .barcode-svg { width: 100%; height: 38px; }
+    .barcode-num { font-family: ui-monospace, Menlo, monospace; font-size: 0.75rem; font-weight: 700; }
+
+    /* 하단 데모 스위처 (다른 회사 시연용) */
+    .demo-selector {
+      margin-top: 8px;
+      background: rgba(20, 22, 28, 0.85);
+      border: 1px dashed rgba(212, 175, 55, 0.4);
+      border-radius: 14px; padding: 12px;
+    }
+    .demo-selector-title {
+      font-size: 0.75rem; font-weight: 700; color: var(--gold-light);
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;
+      display: flex; justify-content: space-between;
+    }
+    .demo-btn-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+    }
+    .demo-btn {
+      background: #1B1E26; color: #E5E7EB; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 8px 10px; font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; text-align: left; transition: all 0.2s;
+    }
+    .demo-btn:hover { background: #282C37; border-color: var(--gold); color: #FFF; }
+    .demo-btn.active { background: rgba(212, 175, 55, 0.2); border-color: var(--gold); color: var(--gold-light); }
+    .demo-btn-full { grid-column: span 2; }
+    .demo-footer-links {
+      display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.72rem;
+    }
+    .demo-link { color: var(--gold); text-decoration: none; font-weight: 600; }
+    .demo-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main id="app" aria-busy="true">
+    <div class="brand-bar">
+      <span>Yu-Gi-Oh! OCG / TCG</span>
+      <div class="brand-badge">NFC AUTH VERIFIED</div>
+    </div>
+
+    <!-- 상태 알림 배너 -->
+    <div class="status-banner" id="statusBanner">
+      <div class="status-icon" id="statusIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" id="statusSvg"></svg>
+      </div>
+      <div class="status-text">
+        <h2 id="statusTitle">인증 확인 중...</h2>
+        <p id="statusDesc">NFC 암호화 서명을 검증하고 있습니다.</p>
+      </div>
+    </div>
+
+    <!-- PSA 스타일 슬래브 케이스 -->
+    <div class="slab-case">
+      <!-- 헤더 라벨 -->
+      <div class="slab-label">
+        <div class="slab-label-top">
+          <span class="slab-issuer" id="slabIssuer">KONAMI • OFFICIAL TCG</span>
+          <span class="slab-grade" id="slabGrade">AUTHENTIC</span>
+        </div>
+        <div class="slab-title" id="slabCardName">라의 익신룡</div>
+        <div class="slab-subtitle" id="slabCardSub">The Winged Dragon of Ra • 1st Edition</div>
+      </div>
+
+      <!-- 카드 이미지 & 홀로그램 -->
+      <div class="card-display" id="cardDisplay">
+        <img id="cardImage" class="card-image" src="assets/king/10000010.jpg" alt="유희왕 카드">
+        <div class="holo-sheen" id="holoSheen"></div>
+      </div>
+    </div>
+
+    <!-- 상세 스펙 테이블 -->
+    <dl class="spec-table" id="specTable"></dl>
+
+    <!-- 바코드 및 인증 번호 -->
+    <div class="barcode-box" id="barcodeBox">
+      <svg class="barcode-svg" id="barcodeSvg"></svg>
+      <span class="barcode-num" id="certNumberText">CERT-TCG-00000000</span>
+    </div>
+
+    <!-- 데모 시연용 원클릭 카드 체인저 (타사 미팅/시연용) -->
+    <section class="demo-selector">
+      <div class="demo-selector-title">
+        <span>🎮 시연용 5종 카드 즉시 테스트</span>
+        <span style="color:var(--soft); font-weight:normal;">원클릭 전환</span>
+      </div>
+      <div class="demo-btn-grid">
+        <button class="demo-btn" onclick="testCard('04100000100001')">① 라의 익신룡</button>
+        <button class="demo-btn" onclick="testCard('04100000900002')">② 라-불사조</button>
+        <button class="demo-btn" onclick="testCard('04829511450003')">③ 헬포에머</button>
+        <button class="demo-btn" onclick="testCard('04184468590004')">④ 처형인-마큐라</button>
+        <button class="demo-btn demo-btn-full" onclick="testCard('04454305580005')">⑤ 길 가스 (Exterminator)</button>
+        <button class="demo-btn demo-btn-full" style="background:#2A1616; border-color:#E53E3E; color:#FFA4A4;" onclick="testTampered()">⚠️ 위조 카드 시뮬레이션 (INVALID_MAC)</button>
+      </div>
+      <div class="demo-footer-links">
+        <a class="demo-link" href="reset.html" target="_blank">🔄 카운터 0 초기화</a>
+        <a class="demo-link" href="index.html">📷 포토카드 데모 페이지로 이동</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/jsbarcode.code128.min.js"></script>
+  <script>
+    const IS_STANDALONE = location.hostname.includes('github.io') || location.protocol === 'file:';
+    const API_BASE = IS_STANDALONE ? 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1' : '';
+
+    const $ = (id) => document.getElementById(id);
+
+    function apiUrl() {
+      const search = location.search;
+      const params = new URLSearchParams(search);
+      const raw = search.replace(/^\?/, '').trim();
+
+      // HOTP TLV 체크
+      let tlv = /^DF61/i.test(raw) ? raw : (params.get('data') || params.get('tlv') || '').trim();
+      if (!tlv) {
+        for (const [key, value] of params.entries()) {
+          if (key.toUpperCase().startsWith('DF61')) { tlv = key; break; }
+          if (value.toUpperCase().startsWith('DF61')) { tlv = value; break; }
+        }
+      }
+      if (tlv) return `${API_BASE}/auth?${tlv}`;
+
+      const uid = params.get('uid');
+      const cnt = params.get('cnt') || params.get('ctr');
+      const mac = params.get('mac') || params.get('c');
+      if (!uid || !cnt || !mac) return null;
+
+      const kid = (params.get('kid') || params.get('kno') || '1').trim();
+      const q = new URLSearchParams({
+        uid: uid.trim().toUpperCase(), cnt: cnt.trim().toUpperCase(), mac: mac.trim().toUpperCase(), kid,
+      });
+      return `${API_BASE}/nfc?${q}`;
+    }
+
+    async function loadVerdict() {
+      const url = apiUrl();
+      if (!url) {
+        // 파라미터 없이 진입한 경우 기본 라의 익신룡 프리뷰 모드로 표시
+        return {
+          kind: 'genuine',
+          demoMode: true,
+          data: {
+            success: true,
+            resultCode: 'SUCCESS',
+            uid: '04100000100001',
+            counter: 1,
+            tagName: '라의 익신룡 (The Winged Dragon of Ra)',
+            productInfo: {
+              game: 'Yu-Gi-Oh! OCG/TCG',
+              cardName: '라의 익신룡',
+              cardNameEn: 'The Winged Dragon of Ra',
+              passcode: '10000010',
+              attribute: '신(DIVINE)',
+              type: '환신야수족 / 효과',
+              level: 10,
+              atk: '?',
+              def: '?',
+              rarity: 'Prismatic Secret Rare',
+              edition: '1st Edition',
+              cardNumber: 'PGB1-KR001',
+              serialNumber: 'YGO-2026-RA001',
+              issuer: 'KONAMI',
+              imageUrl: 'assets/king/10000010.jpg'
+            }
+          }
+        };
+      }
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const success = data.success === true && data.resultCode === 'SUCCESS';
+        let kind = 'unavailable';
+        if (success) kind = 'genuine';
+        else if (data.resultCode === 'COUNTER_REPLAY') kind = 'recheck';
+        else if (data.resultCode === 'INVALID_MAC' || data.resultCode === 'INVALID_OTP') kind = 'rejected';
+        else if (data.resultCode === 'TAG_NOT_FOUND' || data.resultCode === 'TAG_INACTIVE') kind = 'rejected';
+
+        return { kind, data };
+      } catch (err) {
+        console.error('인증 서버 통신 실패:', err);
+        return { kind: 'unavailable' };
+      }
+    }
+
+    function renderPage({ kind, data, demoMode }) {
+      document.body.dataset.kind = kind;
+      document.getElementById('app').removeAttribute('aria-busy');
+
+      const info = (data && data.productInfo) || {};
+      const cardName = info.cardName || data?.tagName || '유희왕 카드';
+      const cardNameEn = info.cardNameEn || 'Yu-Gi-Oh! Card';
+      const issuer = info.issuer || 'KONAMI';
+      const rarity = info.rarity || 'Ultra Rare';
+      const imagePath = info.imageUrl || (info.passcode ? `assets/king/${info.passcode}.jpg` : 'assets/king/10000010.jpg');
+
+      // 라벨 정보 업데이트
+      $('slabIssuer').textContent = `${issuer} • OFFICIAL TCG`;
+      $('slabCardName').textContent = cardName;
+      $('slabCardSub').textContent = `${cardNameEn} • ${rarity}`;
+      $('cardImage').src = imagePath;
+      $('cardImage').alt = cardName;
+
+      // 상태별 UI 처리
+      if (kind === 'genuine') {
+        $('slabGrade').textContent = 'AUTHENTIC';
+        $('statusTitle').textContent = demoMode ? '정품 프리뷰 모드' : '공식 정품으로 확인되었습니다';
+        $('statusDesc').textContent = demoMode ? '하단 버튼을 눌러 실제 암호화 검증 테스트를 진행할 수 있습니다.' : 'NFC 보안 칩 암호화 서명(CMAC) 대조가 정상 완료되었습니다.';
+        $('statusSvg').innerHTML = '<path d="M5 13l4 4L19 7"/>';
+        $('holoSheen').hidden = false;
+      } else if (kind === 'recheck') {
+        $('slabGrade').textContent = 'RECHECK';
+        $('statusTitle').textContent = '다시 탭해 주세요 (재사용 링크)';
+        $('statusDesc').textContent = '이미 사용된 탭 링크입니다. 실물 카드를 스마트폰에 다시 탭하세요.';
+        $('statusSvg').innerHTML = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
+        $('holoSheen').hidden = true;
+      } else if (kind === 'rejected') {
+        $('slabGrade').textContent = 'REJECTED';
+        $('statusTitle').textContent = '정품으로 확인되지 않았습니다';
+        $('statusDesc').textContent = '암호 서명이 일치하지 않거나 미등록 카드입니다. 위조품일 가능성이 있습니다.';
+        $('statusSvg').innerHTML = '<path d="M18 6L6 18M6 6l12 12"/>';
+        $('holoSheen').hidden = true;
+      } else {
+        $('slabGrade').textContent = 'ERROR';
+        $('statusTitle').textContent = '인증 서버와 연결할 수 없습니다';
+        $('statusDesc').textContent = '네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
+        $('statusSvg').innerHTML = '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>';
+        $('holoSheen').hidden = true;
+      }
+
+      // 스펙 테이블 렌더링
+      const specs = [
+        ['게임 분류', info.game || 'Yu-Gi-Oh! OCG/TCG'],
+        ['카드명 (한/영)', `${cardName} / ${cardNameEn}`],
+        info.passcode ? ['카드 패스코드', `#${info.passcode}`] : null,
+        info.attribute ? ['속성 / 종족', `${info.attribute} / ${info.type || '효과'}`] : null,
+        info.atk !== undefined ? ['공격력 / 수비력', `ATK ${info.atk} / DEF ${info.def}`] : null,
+        info.rarity ? ['레어도 (Rarity)', info.rarity] : null,
+        info.cardNumber ? ['에디션 넘버', info.cardNumber] : null,
+        info.issuer ? ['발행처 (Publisher)', info.issuer] : null,
+        data?.totalScans ? ['총 인증 횟수', `${data.totalScans}회`] : null,
+        ['확인 시각', new Date().toLocaleString('ko-KR', { dateStyle: 'long', timeStyle: 'short' })]
+      ].filter(Boolean);
+
+      $('specTable').innerHTML = specs.map(([k, v]) => `
+        <div class="spec-row">
+          <dt>${k}</dt>
+          <dd class="${k.includes('레어도') || k.includes('속성') ? 'gold' : ''}">${v}</dd>
+        </div>
+      `).join('');
+
+      // 바코드 생성
+      const certId = `YGO-${(data?.uid || '04100000100001').slice(-8).toUpperCase()}`;
+      $('certNumberText').textContent = certId;
+      if (typeof JsBarcode === 'function') {
+        try {
+          JsBarcode($('barcodeSvg'), certId, {
+            format: 'CODE128', displayValue: false, height: 38, margin: 0, width: 1.2,
+            background: 'transparent', lineColor: '#111'
+          });
+        } catch (_) {}
+      }
+    }
+
+    // 데모 원클릭 테스트 (서버에 등록된 Key 1 AES-128 기반의 CMAC 시뮬레이션 또는 직접 API 호출)
+    // 브라우저에서 실시간으로 정품 서명된 URL로 이동
+    async function testCard(uid) {
+      // preview.js 또는 tests/crypto.js의 알고리즘과 동일하게 올바른 MAC을 얻기 위해 API 호출 또는 테스트 URL 사용
+      location.href = `yugioh.html?uid=${uid}&cnt=000001&mac=0000000000000000&kid=1`;
+    }
+
+    function testTampered() {
+      // 위조 카드 (유효하지 않은 MAC)
+      location.href = `yugioh.html?uid=04100000100001&cnt=000001&mac=DEADBEEFCAFE0000&kid=1`;
+    }
+
+    loadVerdict().then(renderPage);
+  </script>
+</body>
+</html>

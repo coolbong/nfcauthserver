@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: #131209; color: #F7F5EF; display: flex; justify-content: center; padding: 16px; }
+main { width: min(100%, 420px); display: flex; flex-direction: column; gap: 8px; min-height: calc(100dvh - 32px); }
+.brand { text-align: center; padding: 4px 0 8px; color: #A8A69E; }
+.slab { padding: 8px; background: #272727; border: 1px solid #313131; border-radius: 16px; position: relative; overflow: hidden; }
+.slab::after { content: ""; position: absolute; top: 0; bottom: 0; left: -12%; width: 60%; background: rgba(255,255,255,.05); clip-path: polygon(40% 0,100% 0,60% 100%,0 100%); pointer-events: none; }
+.slab { flex: 1; display: flex; }
+.label { flex: 1; position: relative; overflow: hidden; padding: 16px; border-radius: 8px; border: 2px solid var(--c, #313131); background: #F7F5EF; color: #181818; min-height: 196px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; }
+.pattern { position: absolute; right: -112px; top: -64px; width: 320px; height: 320px; opacity: .3; }
+.top { position: relative; display: flex; align-items: center; gap: 8px; color: var(--c); font-size: .75rem; line-height: 1rem; font-weight: 600; margin-bottom: auto; }
+.badge { width: 32px; height: 32px; border-radius: 50%; background: var(--c); color: #F7F5EF; display: grid; place-items: center; flex: none; }
+.badge svg { width: 18px; height: 18px; }
+h1 { position: relative; font-size: 3rem; line-height: 1; font-weight: 600; color: var(--c); }
+body:not([data-kind="genuine"]) h1 { font-size: 1.875rem; line-height: 2.25rem; color: inherit; }
+.detail { position: relative; color: #5C5B55; font-size: .875rem; line-height: 1.25rem; }
+.record { padding: 4px 16px; background: #181818; border: 1px solid #313131; border-radius: 16px; }
+.r { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; font-size: .875rem; line-height: 1.25rem; }
+.r + .r { border-top: 1px solid rgba(247,245,239,.12); }
+.r span { color: #A8A69E; flex: none; }
+.r b { font-weight: 500; text-align: right; }
+.code { padding: 12px 16px; background: #F7F5EF; color: #181818; border-radius: 16px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.bar { width: 100%; height: 40px; display: block; }
+.code span { font-size: .75rem; line-height: 1rem; font-weight: 500; font-family: ui-monospace, Menlo, monospace; }
+body[data-kind="rejected"] .label { background: #181818; color: #F7F5EF; }
+body[data-kind="rejected"] .detail { color: #A8A69E; }
+body[data-kind="rejected"] .badge { color: #181818; }
+</style></head>
+<body>
+<main id="m">
+  <p class="brand">NFC Authentication</p>
+  <div class="slab"><div class="label"><svg class="pattern" id="pat" aria-hidden="true"></svg>
+    <div class="top" id="top" hidden><span class="badge"><svg id="mark" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></svg></span><span id="eng"></span></div>
+    <h1 id="title" class="rise"></h1><p class="detail" id="detail"></p></div></div>
+  <section class="record" id="rec" hidden aria-label="확인 정보"></section>
+  <div class="code" id="code" hidden><svg class="bar" id="bar" role="img" aria-label="인증 번호 바코드" hidden></svg><span id="cert"></span></div>
+</main>
+<script src="/jsbarcode.js"></script>
+<script type="module">
+import { getVerdict, cardTitle, dateTime } from '/verdict.js';
+import { rosette, barcode, MARKS, ENG, COLOR } from '/security.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+const color = COLOR[v.kind];
+$('m').style.setProperty('--c', color);
+rosette($('pat'), color);
+$('mark').innerHTML = MARKS[v.kind];
+$('eng').textContent = ENG[v.kind]; $('top').hidden = false;
+$('title').textContent = v.title; $('detail').textContent = v.detail;
+const c = v.card;
+const rows = v.kind === 'genuine' ? [['아티스트', c.artist], ['멤버', c.member], ['앨범', cardTitle(c)], ['카드 번호', `#${c.cardNumber}`], ['발행처', c.issuer], ['확인 시각', dateTime(v.verifiedAt)]]
+  : c ? [['아티스트', c.artist], ['멤버', c.member], ['앨범', cardTitle(c)], ['확인 시각', dateTime(v.verifiedAt)]]
+  : [['결과', ENG[v.kind]], ['다음 단계', v.kind === 'rejected' ? '구매처 문의' : '카드 다시 탭'], ['확인 시각', dateTime(v.verifiedAt)]];
+rows.forEach(([k, val]) => { const r = document.createElement('div'); r.className = 'r'; const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = val; r.append(a, b); $('rec').append(r); });
+$('rec').hidden = false;
+if (v.kind === 'genuine') { $('cert').textContent = c.certNumber; barcode($('bar'), c.certNumber); $('code').hidden = false; }
+</script>
+</body></html>

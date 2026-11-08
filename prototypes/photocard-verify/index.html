@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>포토카드 인증 시안</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: #181818; color: #F7F5EF; padding: 32px 16px; }
+main { max-width: 680px; margin: 0 auto; display: grid; gap: 24px; }
+h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; }
+.lead { margin-top: 8px; color: #A8A69E; font-size: .875rem; line-height: 1.25rem; }
+section { border: 1px solid rgba(247,245,239,.14); border-radius: 12px; padding: 16px; }
+h2 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 500; }
+section p { color: #A8A69E; font-size: .875rem; line-height: 1.25rem; margin-top: 4px; }
+.taps { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+a { min-height: 48px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border-radius: 8px; background: #F7F5EF; color: #181818; text-decoration: none; font-size: .875rem; line-height: 1.25rem; font-weight: 600; transition: opacity 300ms var(--curve); }
+a:hover { opacity: .86; }
+a.alt { background: transparent; color: #F7F5EF; border: 1px solid rgba(247,245,239,.24); }
+</style></head>
+<body><main>
+<header><h1>포토카드 인증 시안</h1><p class="lead">버튼은 카드 탭을 대신합니다. 이 화면은 검토용이고, 고객은 버튼 뒤의 화면만 봅니다. 고객 화면을 새로고침하면 실제처럼 재사용으로 판정됩니다.</p></header>
+<section><h2>실제 페이지 (A2 적용)</h2><p>배포할 verify.html을 로컬 인증 서버로 실행합니다.</p><div class="taps" data-d="verify"></div></section>
+<section><h2>A1. 풀 슬랩</h2><p>슬랩 비율을 살리고 카드 자리를 보안 문양과 판정 씰로 채웁니다.</p><div class="taps" data-d="a1"></div></section>
+<section><h2>A2. 인증 기록</h2><p>큰 판정 아래에 카드 정보와 인증 번호, 바코드를 놓습니다.</p><div class="taps" data-d="a2"></div></section>
+<section><h2>A3. 풀 라벨</h2><p>화면 전체가 하나의 대형 라벨입니다.</p><div class="taps" data-d="a3"></div></section>
+<section><h2>A. 슬랩</h2><p>케이스 라벨만으로 카드 정보와 판정을 표시합니다.</p><div class="taps" data-d="a"></div></section>
+<section><h2>B. 확인서</h2><p>큰 글자로 판정을 먼저 읽히게 하는 종이 문서입니다.</p><div class="taps" data-d="b"></div></section>
+<section><h2>C. 라이브 씰</h2><p>카드가 화면을 채우고 움직이는 씰과 현재 시각이 캡처와 구분해 줍니다.</p><div class="taps" data-d="c"></div></section>
+</main>
+<script>
+const S = [['genuine', '정품 탭', ''], ['replay', '재사용 링크', 'alt'], ['fake', '위조 태그', 'alt']];
+document.querySelectorAll('.taps').forEach((box) => {
+  S.forEach(([k, t, c]) => { const a = document.createElement('a'); a.href = `/tap/${box.dataset.d}/${k}`; a.textContent = t; a.className = c; box.append(a); });
+});
+</script>
+</body></html>

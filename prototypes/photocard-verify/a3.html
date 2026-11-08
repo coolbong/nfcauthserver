@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: var(--paper, #F7F5EF); color: var(--ink, #181818); padding: 8px; display: flex; }
+.label { flex: 1; position: relative; overflow: hidden; max-width: 520px; margin: 0 auto; border: 8px solid var(--c, #313131); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; min-height: calc(100dvh - 16px); }
+.pattern { position: absolute; left: 50%; top: 56%; width: 136%; aspect-ratio: 1; transform: translate(-50%, -50%); opacity: .28; }
+.head, .mid, .foot { position: relative; }
+.head { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.lines { display: grid; min-width: 0; }
+.small { font-size: .75rem; line-height: 1rem; font-weight: 500; }
+.name { font-size: 1.5rem; line-height: 2rem; font-weight: 600; }
+.brand { text-align: right; flex: none; }
+.mid { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.eng { font-size: .875rem; line-height: 1.25rem; font-weight: 600; color: var(--c); }
+h1 { font-size: 8rem; line-height: 1; font-weight: 600; color: var(--c); }
+body:not([data-kind="genuine"]) h1 { font-size: 3rem; line-height: 1; color: var(--ink); }
+.detail { font-size: 1rem; line-height: 1.5rem; max-width: 320px; }
+.foot { padding-top: 12px; border-top: 2px solid var(--ink); display: grid; gap: 8px; }
+.bar { width: 100%; height: 48px; display: block; }
+.meta { display: flex; justify-content: space-between; gap: 12px; }
+.mono { font-family: ui-monospace, Menlo, monospace; }
+</style></head>
+<body>
+<main class="label" id="l"><svg class="pattern" id="pat" aria-hidden="true"></svg>
+  <div class="head"><div class="lines"><span class="small" id="l1">&nbsp;</span><span class="name" id="l2">&nbsp;</span><span class="small" id="l3">&nbsp;</span></div><span class="brand small">NFC<br>Authentication</span></div>
+  <div class="mid"><p class="eng" id="eng"></p><h1 id="title" class="rise"></h1><p class="detail" id="detail"></p></div>
+  <div class="foot"><svg class="bar" id="bar" hidden></svg><div class="meta small"><span class="mono" id="cert"></span><span id="when"></span></div></div>
+</main>
+<script src="/jsbarcode.js"></script>
+<script type="module">
+import { getVerdict, cardTitle, cardSub, dateTime } from '/verdict.js';
+import { rosette, barcode, ENG, COLOR } from '/security.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+const color = COLOR[v.kind];
+const s = document.body.style;
+s.setProperty('--c', color);
+if (v.kind === 'rejected') { s.setProperty('--paper', '#181818'); s.setProperty('--ink', '#F7F5EF'); }
+rosette($('pat'), color);
+$('eng').textContent = ENG[v.kind]; $('title').textContent = v.kind === 'genuine' ? '정품' : v.title; $('detail').textContent = v.detail;
+$('l1').textContent = v.card ? cardTitle(v.card) : '포토카드';
+$('l2').textContent = v.card ? v.card.member : '확인되지 않은 카드';
+$('l3').textContent = v.card ? cardSub(v.card) : '';
+$('when').textContent = dateTime(v.verifiedAt);
+if (v.kind === 'genuine') { $('cert').textContent = v.card.certNumber; barcode($('bar'), v.card.certNumber); }
+</script>
+</body></html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: #131209; color: #F7F5EF; overflow: hidden; }
+.photo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+body[data-kind="recheck"] .photo { opacity: .22; }
+.top { position: fixed; top: 16px; left: 0; right: 0; text-align: center; }
+.top span { display: inline-block; padding: 4px 12px; border-radius: 9999px; background: rgba(19,18,9,.72); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.sheet { position: fixed; left: 8px; right: 8px; bottom: 8px; max-width: 440px; margin: 0 auto; padding: 96px 24px 24px; background: #181818; border-radius: 16px; text-align: center; }
+body[data-kind="genuine"] .sheet { padding-top: 88px; }
+.seal { position: absolute; top: -72px; left: 50%; margin-left: -72px; width: 144px; height: 144px; }
+.ring { position: absolute; inset: 0; animation: tick 60s steps(60) infinite; }
+.ring text { font-family: var(--font); font-size: 9.5px; font-weight: 600; letter-spacing: .6px; fill: #181818; }
+.disc { width: 100%; height: 100%; display: block; }
+.mark { position: absolute; inset: 44px; color: #181818; }
+@keyframes tick { to { transform: rotate(360deg); } }
+body[data-kind="genuine"] .disc circle { fill: #4CC38A; }
+body[data-kind="recheck"] .disc circle { fill: #F2A93B; }
+body[data-kind="rejected"] .disc circle { fill: #F4686E; }
+body[data-kind="unavailable"] .disc circle, body[data-kind="loading"] .disc circle { fill: #A8A69E; }
+body:not([data-kind="genuine"]) .ring { animation: none; }
+h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; }
+.detail { margin-top: 8px; color: #A8A69E; font-size: .875rem; line-height: 1.25rem; }
+.item { margin-top: 12px; font-size: 1rem; line-height: 1.5rem; font-weight: 500; }
+.live { margin-top: 12px; display: inline-flex; gap: 8px; align-items: center; font-size: .875rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; color: #4CC38A; }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: blink 2s var(--curve) infinite alternate; }
+@keyframes blink { to { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .ring, .live::before { animation: none; } }
+</style></head>
+<body data-kind="loading">
+<img class="photo" id="img" alt="" hidden>
+<div class="top"><span class="brand">NFC Authentication</span></div>
+<main class="sheet">
+  <div class="seal" aria-hidden="true">
+    <svg class="disc" viewBox="0 0 144 144"><circle cx="72" cy="72" r="72"/></svg>
+    <svg class="ring" viewBox="0 0 144 144"><defs><path id="p" d="M72 72m-58 0a58 58 0 1 1 116 0a58 58 0 1 1-116 0"/></defs><text id="ringText"><textPath href="#p" textLength="360" lengthAdjust="spacing"></textPath></text></svg>
+    <svg class="mark" id="mark" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></svg>
+  </div>
+  <h1 id="title" class="rise">확인하고 있습니다</h1>
+  <p class="detail" id="detail"></p>
+  <p class="item" id="item" hidden></p>
+  <p class="live" id="live" hidden></p>
+</main>
+<script type="module">
+import { getVerdict, clock, cardSub } from '/verdict.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+$('title').textContent = v.title; $('detail').textContent = v.detail;
+const MARK = { genuine: '<path d="M12 29l11 11 21-23"/>', recheck: '<path d="M28 12v20M28 44v.5"/>', rejected: '<path d="M14 14l28 28M42 14L14 42"/>', unavailable: '<path d="M28 12v20M28 44v.5"/>' };
+$('mark').innerHTML = MARK[v.kind];
+document.querySelector('#ringText textPath').textContent = { genuine: 'GENUINE 정품 인증 · GENUINE 정품 인증 · GENUINE 정품 인증 ·', recheck: '다시 확인 필요 · 다시 확인 필요 · 다시 확인 필요 ·', rejected: 'NOT VERIFIED · NOT VERIFIED · NOT VERIFIED ·', unavailable: '' }[v.kind];
+if (v.card) { $('img').src = v.card.imageUrl; $('img').alt = `${v.card.member} 포토카드`; $('img').hidden = false; }
+if (v.kind === 'genuine') {
+  $('item').textContent = `${v.card.member} · ${cardSub(v.card)}`; $('item').hidden = false;
+  const tick = () => { $('live').textContent = `지금 확인 중 ${clock(new Date())}`; };
+  tick(); setInterval(tick, 1000); $('live').hidden = false;
+}
+</script>
+</body></html>

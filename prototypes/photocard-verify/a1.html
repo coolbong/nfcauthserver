@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: #131209; color: #F7F5EF; display: flex; justify-content: center; align-items: center; padding: 16px; }
+.slab { width: min(100%, 420px); height: calc(100dvh - 32px); max-height: 720px; padding: 8px; display: flex; flex-direction: column; gap: 8px; background: #272727; border: 1px solid #313131; border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+.slab::after { content: ""; position: absolute; top: 0; bottom: 0; left: -12%; width: 60%; background: rgba(255,255,255,.05); clip-path: polygon(40% 0,100% 0,60% 100%,0 100%); pointer-events: none; }
+.label { padding: 12px; display: grid; gap: 8px; border-radius: 8px; border: 2px solid var(--c, #313131); background: #F7F5EF; color: #181818; min-height: 124px; }
+.row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-end; }
+.lines { display: grid; min-width: 0; }
+.small { font-size: .75rem; line-height: 1rem; font-weight: 500; }
+.name { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+.grade { text-align: right; flex: none; align-self: flex-start; }
+.grade b { display: block; font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; }
+.grade span { color: #5C5B55; }
+.cert { color: #5C5B55; font-family: ui-monospace, Menlo, monospace; }
+.bar { width: 128px; height: 24px; display: block; flex: none; }
+.well { flex: 1; min-height: 0; position: relative; background: #181818; border: 1px solid #313131; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; overflow: hidden; }
+.pattern { position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; transform: translate(-50%, -50%); opacity: .5; }
+.seal { position: relative; width: 112px; height: 112px; border-radius: 50%; background: var(--c, #313131); color: #F7F5EF; display: grid; place-items: center; outline: 4px solid #181818; }
+.seal svg { width: 56px; height: 56px; }
+.say { position: relative; padding: 8px 12px; background: #181818; border-radius: 8px; }
+h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 600; }
+.detail { margin-top: 4px; color: #A8A69E; font-size: .875rem; line-height: 1.25rem; }
+body[data-kind="rejected"] .label { background: #181818; color: #F7F5EF; }
+body[data-kind="rejected"] .grade span, body[data-kind="rejected"] .cert { color: #A8A69E; }
+body[data-kind="rejected"] .seal { color: #181818; }
+</style></head>
+<body>
+<main class="slab" id="slab">
+  <div class="label"><div class="row"><div class="lines"><span class="small" id="l1">&nbsp;</span><span class="name" id="l2">&nbsp;</span><span class="small" id="l3">&nbsp;</span></div><div class="grade"><span class="small" id="eng"></span><b id="ko"></b></div></div>
+  <div class="row"><span class="small cert" id="cert"></span><svg class="bar" id="bar" hidden></svg></div></div>
+  <div class="well"><svg class="pattern" id="pat" aria-hidden="true"></svg>
+    <div class="seal rise" id="seal" hidden aria-hidden="true"><svg id="mark" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></svg></div>
+    <div class="say rise" id="say" hidden><h1 id="title"></h1><p class="detail" id="detail"></p></div>
+  </div>
+</main>
+<script src="/jsbarcode.js"></script>
+<script type="module">
+import { getVerdict, cardTitle, cardSub, dateTime } from '/verdict.js';
+import { rosette, barcode, MARKS, ENG, COLOR } from '/security.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+const color = COLOR[v.kind];
+$('slab').style.setProperty('--c', color);
+rosette($('pat'), color);
+$('eng').textContent = ENG[v.kind];
+$('ko').textContent = { genuine: '정품', recheck: '재확인', rejected: '미확인', unavailable: '확인 불가' }[v.kind];
+$('l1').textContent = v.card ? cardTitle(v.card) : '포토카드';
+$('l2').textContent = v.card ? v.card.member : '확인되지 않은 카드';
+$('l3').textContent = v.card ? cardSub(v.card) : dateTime(v.verifiedAt);
+if (v.kind === 'genuine') { $('cert').textContent = v.card.certNumber; barcode($('bar'), v.card.certNumber); }
+$('mark').innerHTML = MARKS[v.kind];
+$('title').textContent = v.title;
+$('detail').textContent = v.kind === 'genuine' ? `${dateTime(v.verifiedAt)} 확인` : v.detail;
+$('seal').hidden = false; $('say').hidden = false;
+</script>
+</body></html>

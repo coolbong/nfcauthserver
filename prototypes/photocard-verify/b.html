@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { --paper: #F7F5EF; --ink: #181818; --soft: #5C5B55; --accent: #B3131B; background: var(--paper); color: var(--ink); padding: 16px; display: flex; }
+body[data-kind="rejected"] { --paper: #181818; --ink: #F7F5EF; --soft: #A8A69E; --accent: #F4686E; }
+body[data-kind="recheck"] { --accent: #B45309; }
+body[data-kind="unavailable"] { --accent: #5C5B55; }
+.sheet { flex: 1; max-width: 440px; margin: 0 auto; border: 1px solid var(--ink); border-radius: 12px; padding: 4px; display: flex; }
+.inner { flex: 1; border: 1px solid var(--ink); border-radius: 8px; padding: 24px 16px; display: flex; flex-direction: column; gap: 24px; }
+.top { display: flex; justify-content: space-between; align-items: center; color: var(--soft); }
+.verdict { padding: 16px 0; }
+.verdict h1 { font-size: 4.5rem; line-height: 1; font-weight: 600; color: var(--accent); }
+body[data-kind="rejected"] .verdict h1, body[data-kind="unavailable"] .verdict h1, body[data-kind="recheck"] .verdict h1 { font-size: 3rem; }
+.verdict p { margin-top: 12px; color: var(--soft); font-size: 1rem; line-height: 1.5rem; }
+.item { margin-top: auto; display: grid; justify-items: center; gap: 16px; padding-top: 24px; border-top: 1px solid var(--ink); text-align: center; }
+.item img { display: block; width: min(62%, 240px); aspect-ratio: 55/85; object-fit: cover; border-radius: 6px; }
+.meta { display: grid; gap: 4px; min-width: 0; }
+.meta b { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+.meta span { font-size: .875rem; line-height: 1.25rem; color: var(--soft); }
+body[data-kind="recheck"] .item img { opacity: .3; }
+.wait { opacity: .5; font-size: 1.5rem; line-height: 2rem; font-weight: 600; }
+</style></head>
+<body data-kind="loading">
+<main class="sheet"><div class="inner">
+  <div class="top"><span class="brand">NFC Authentication</span><span class="brand">정품 확인서</span></div>
+  <div class="verdict"><h1 id="title" class="wait" style="color:inherit;font-size:1.5rem;line-height:2rem">확인하고 있습니다</h1><p id="detail"></p></div>
+  <div class="item" id="item" hidden><img id="img" alt=""><div class="meta"><b id="member"></b><span id="t1"></span><span id="t2"></span><span id="when"></span></div></div>
+</div></main>
+<script type="module">
+import { getVerdict, cardTitle, cardSub, dateTime } from '/verdict.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+const t = $('title'); t.className = 'rise'; t.removeAttribute('style'); t.textContent = v.title;
+$('detail').textContent = v.detail;
+if (v.card) {
+  $('img').src = v.card.imageUrl; $('img').alt = `${v.card.member} 포토카드`;
+  $('member').textContent = v.card.member; $('t1').textContent = cardTitle(v.card); $('t2').textContent = cardSub(v.card);
+  if (v.kind === 'genuine') $('when').textContent = `${dateTime(v.verifiedAt)} 확인`;
+  $('item').hidden = false; $('item').classList.add('rise');
+}
+</script>
+</body></html>

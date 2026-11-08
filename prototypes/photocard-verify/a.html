@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>정품 확인</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+body { background: #131209; color: #F7F5EF; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+.brand { margin-bottom: auto; }
+main { width: min(100%, 360px); display: grid; gap: 16px; margin-bottom: auto; }
+.slab { padding: 8px; background: #272727; border: 1px solid #313131; border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+.slab::after { content: ""; position: absolute; top: 0; bottom: 0; left: -12%; width: 60%; background: rgba(255,255,255,.06); clip-path: polygon(40% 0,100% 0,60% 100%,0 100%); pointer-events: none; }
+.label { min-height: 240px; padding: 16px; display: flex; flex-direction: column; gap: 32px; border-radius: 8px; border: 2px solid #B3131B; background: #F7F5EF; color: #181818; }
+.lines { display: grid; min-width: 0; }
+.small { font-size: .75rem; line-height: 1rem; font-weight: 500; }
+.name { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+.result { margin-top: auto; }
+.eng { display: block; margin-bottom: 4px; color: #5C5B55; font-weight: 600; }
+h1 { font-size: 3.75rem; line-height: 1; font-weight: 600; color: #B3131B; }
+body[data-kind]:not([data-kind="genuine"]) h1 { font-size: 2.25rem; line-height: 2.5rem; color: inherit; }
+.detail { text-align: center; color: #A8A69E; font-size: .875rem; line-height: 1.25rem; }
+body[data-kind="recheck"] .label { border-color: #B45309; }
+body[data-kind="rejected"] .label { background: #181818; color: #F7F5EF; border-color: #F4686E; }
+body[data-kind="rejected"] .eng { color: #A8A69E; }
+body[data-kind="unavailable"] .label { border-color: #5C5B55; }
+body[data-loading] .label { background: #1F1F1F; border-color: #313131; animation: pulse 1400ms var(--curve) infinite alternate; }
+@keyframes pulse { from { opacity: .45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { body[data-loading] .label { animation: none; } }
+</style></head>
+<body data-loading>
+<p class="brand">NFC Authentication</p>
+<main>
+  <div class="slab"><div class="label">
+    <div class="lines" id="lines" hidden><span class="small" id="l1"></span><span class="name" id="l2"></span><span class="small" id="l3"></span></div>
+    <div class="result" id="result" hidden><span class="small eng" id="eng"></span><h1 id="title"></h1></div>
+  </div></div>
+  <p class="detail" id="detail" hidden></p>
+</main>
+<script type="module">
+import { getVerdict, cardTitle, cardSub } from '/verdict.js';
+const $ = (i) => document.getElementById(i);
+const v = await getVerdict();
+document.body.dataset.kind = v.kind;
+delete document.body.dataset.loading;
+$('eng').textContent = { genuine: 'AUTHENTIC', recheck: 'RECHECK', rejected: 'NOT VERIFIED', unavailable: 'NO RESULT' }[v.kind];
+$('title').textContent = v.title;
+$('result').hidden = false;
+$('result').classList.add('rise');
+if (v.card) {
+  $('l1').textContent = cardTitle(v.card); $('l2').textContent = v.card.member; $('l3').textContent = cardSub(v.card);
+  $('lines').hidden = false;
+}
+$('detail').textContent = v.detail; $('detail').hidden = false;
+</script>
+</body></html>
