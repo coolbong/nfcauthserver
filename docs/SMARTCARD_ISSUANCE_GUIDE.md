@@ -30,7 +30,7 @@
   ├─ 2. 내부 카운터 자동 1 증가 (EEPROM 영구 보존)
   ├─ 3. AES-128 CMAC 실시간 암호화 서명 계산 (UID + Counter + Key)
   └─ 4. 동적 NDEF URL 생성 및 스마트폰으로 전송
-        URL 예시: https://coolbong.github.io/nfcauthserver/?uid=04DE5F1EACC040&cnt=000001&mac=EA2BEDD5DDB4F744&kid=1
+        URL 예시: https://nfcauth.vercel.app/?uid=04DE5F1EACC040&cnt=000001&mac=EA2BEDD5DDB4F744&kid=1
   │
   ▼
 [스마트폰 웹 브라우저 (GitHub Pages / index.html)]
@@ -192,7 +192,7 @@ node scripts/register_tag.js 04112233445566 "NFC 정품 인증 카드 #2" "NFC S
 #### 방법 A: 스마트폰으로 태깅
 스마트폰(iPhone 또는 Android)의 NFC 안테나 위치(카메라 옆 또는 중앙)에 카드를 접촉합니다.
 1. 상단에 웹 링크 알림 팝업 발생
-2. 탭하면 브라우저 열림 (`https://coolbong.github.io/nfcauthserver/?uid=...&cnt=...&mac=...`)
+2. 탭하면 브라우저 열림 (`https://nfcauth.vercel.app/?uid=...&cnt=...&mac=...`)
 3. **"정품 인증 완료"** 화면 확인
 4. **[제품 상세 및 디지털 정품 보증서 확인]** 버튼을 탭하여 골드 테두리의 보증서 팝업 확인
 

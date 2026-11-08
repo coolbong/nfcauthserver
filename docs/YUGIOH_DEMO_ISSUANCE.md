@@ -11,7 +11,7 @@ NFC 개발자에게 전달하는 유희왕 카드 5종의 스마트카드 발급
 | 키 (key index 2) | 20바이트 `0000000000000000000000000000000000000000` (데모용 공개 키) |
 | UID | 16바이트, 카드별 값 (아래 표) |
 | 카운터 | 3바이트 Big-Endian, 첫 탭 값은 0 이상, 탭마다 1 증가 |
-| URL 접두어 | `https://coolbong.github.io/nfcauthserver/yugioh.html?` |
+| URL 접두어 | `https://nfcauth.vercel.app/yugioh?` |
 | URL 쿼리 | BER-TLV 한 개, `DF61 10 <UID>` + `DF62 03 <OTP 6자리 Packed BCD>` + `DF63 03 <카운터>` |
 
 예를 들어 카운터가 1이고 OTP가 `812658`이면 쿼리는 `DF6110<UID>DF6203812658DF6303000001`입니다.
@@ -41,15 +41,15 @@ NFC 개발자에게 전달하는 유희왕 카드 5종의 스마트카드 발급
 카드가 만든 URL을 아래 예시와 비교해 형식을 확인할 수 있습니다. 예시는 각 카드의 카운터 0 URL입니다.
 
 1. 라의 익신룡
-   `https://coolbong.github.io/nfcauthserver/yugioh.html?DF611010000010000000000000000000000001DF6203328482DF6303000000`
+   `https://nfcauth.vercel.app/yugioh?DF611010000010000000000000000000000001DF6203328482DF6303000000`
 2. 라의 익신룡-불사조
-   `https://coolbong.github.io/nfcauthserver/yugioh.html?DF611010000090000000000000000000000002DF6203328482DF6303000000`
+   `https://nfcauth.vercel.app/yugioh?DF611010000090000000000000000000000002DF6203328482DF6303000000`
 3. Helpoemer, Chanter of the Sun God
-   `https://coolbong.github.io/nfcauthserver/yugioh.html?DF611082951145000000000000000000000003DF6203328482DF6303000000`
+   `https://nfcauth.vercel.app/yugioh?DF611082951145000000000000000000000003DF6203328482DF6303000000`
 4. Makyura, Destructor of the Sun God
-   `https://coolbong.github.io/nfcauthserver/yugioh.html?DF611018446859000000000000000000000004DF6203328482DF6303000000`
+   `https://nfcauth.vercel.app/yugioh?DF611018446859000000000000000000000004DF6203328482DF6303000000`
 5. Gil Garth, Exterminator of the Sun God
-   `https://coolbong.github.io/nfcauthserver/yugioh.html?DF611045430558000000000000000000000005DF6203328482DF6303000000`
+   `https://nfcauth.vercel.app/yugioh?DF611045430558000000000000000000000005DF6203328482DF6303000000`
 
 **주의.** 위 URL을 실제로 열면 운영 서버가 그 카운터를 사용한 것으로 기록합니다. 실물 카드의 첫 탭보다 먼저 열면 같은 카운터의 탭이 재사용으로 판정되니, 형식 비교에만 쓰고 열지 마세요.
 

@@ -7,7 +7,7 @@ NFC Authentication 태그 발급 및 동기화 도구
   1. 'CB Virtual Contact 0' 우선 연결 및 스마트 탐색
   2. 태그 하드웨어 UID 추출 (가상 카드 환경 시 DB 기본 UID 자동 매핑)
   3. Supabase DB와 태그 UID 실시간 동기화 및 counter(0) 초기화
-  4. NDEF URL 작성 (https://coolbong.github.io/nfcauthserver/?uid=...&cnt=...&mac=...&kid=1)
+  4. NDEF URL 작성 (https://nfcauth.vercel.app/?uid=...&cnt=...&mac=...&kid=1)
   5. SDM (Secure Dynamic Messaging) 보안 미러링 설정 (UID, 3바이트 카운터, MAC)
 """
 
@@ -36,7 +36,7 @@ DEFAULT_DEMO_UID = "04DE5F1EACC040"
 SUPABASE_PROJECT_REF = os.getenv("SUPABASE_PROJECT_REF", "jklfqmbaubvnbrbuhzak")
 SUPABASE_ACCESS_TOKEN = os.getenv("SUPABASE_ACCESS_TOKEN", "")
 
-DEMO_URL_HOST = "coolbong.github.io/nfcauthserver/?"
+DEMO_URL_HOST = "nfcauth.vercel.app/?"
 DEMO_URL_FULL = f"https://{DEMO_URL_HOST}uid=00000000000000&cnt=000000&mac=0000000000000000&kid=1"
 
 # ==========================================
@@ -359,7 +359,7 @@ def run_tag_writer(reader_override=None, uid_override=None, auto_sync_db=True):
     print(f"  - 등록된 UID : {tag_uid}")
     print(f"  - 초기 카운터 : 0")
     print(f"  - 실시간 테스트 URL:")
-    print(f"    https://coolbong.github.io/nfcauthserver/?uid={tag_uid}&cnt=000001&mac=YOUR_MAC&kid=1")
+    print(f"    https://nfcauth.vercel.app/?uid={tag_uid}&cnt=000001&mac=YOUR_MAC&kid=1")
     print("=" * 68)
 
 

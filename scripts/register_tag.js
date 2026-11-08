@@ -108,7 +108,7 @@ async function run() {
           'model', '${modelName}',
           'serialNumber', '${serialNumber}',
           'warranty', '2년 품질 및 보안 무결성 보증',
-          'supportUrl', 'https://coolbong.github.io/nfcauthserver/certificate.html?uid=${rawUid}',
+          'supportUrl', 'https://nfcauth.vercel.app/certificate?uid=${rawUid}',
           'description', 'DB 키 암호화 및 실시간 CMAC 검증이 적용된 공식 디지털 정품 인증 태그입니다.'
         )
       )
