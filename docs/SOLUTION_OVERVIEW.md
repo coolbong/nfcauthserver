@@ -85,7 +85,7 @@
 ## 6. 라이브 데모 및 도입 문의 안내
 
 * 🌐 **정품 인증 라이브 데모**: [https://nfcauth.vercel.app](https://nfcauth.vercel.app)
-* 🔄 **테스트용 카운터 리셋 허브**: [https://nfcauth.vercel.app/reset](https://nfcauth.vercel.app/reset)
+* 🔐 **카드 관리자 페이지 (로그인 필요)**: [https://nfcauth.vercel.app/admin](https://nfcauth.vercel.app/admin)
 * 💡 **정품 인증 즉시 테스트 예시 URL**:
   * [카운터 0번 인증 테스트 (배현성 한정판 포토카드)](https://nfcauth.vercel.app/?DF61100102030405060708090A0B0C0D0E0F10DF6203328482DF6303000000)
 

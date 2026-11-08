@@ -4,7 +4,7 @@
 
 - 📘 **[솔루션 소개서 (비즈니스/사용자 관점)](docs/SOLUTION_OVERVIEW.md)**: 기본 인증 흐름, 소비자 및 도입 기업 관점의 장점 총정리
 - 🌐 **공식 정품 인증 웹페이지**: [https://nfcauth.vercel.app/](https://nfcauth.vercel.app/)
-- 🔄 **카운터 원클릭 리셋 관리 허브**: [https://nfcauth.vercel.app/reset](https://nfcauth.vercel.app/reset)
+- 🔐 **카드 관리자 페이지 (로그인 필요)**: [https://nfcauth.vercel.app/admin](https://nfcauth.vercel.app/admin)
 - ⚡ **Supabase Edge Function API 엔드포인트**:
   * **AUTH API (단일 TLV + HOTP)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/auth`
   * **NFC API (SDM AES-128-CMAC)**: `https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1/nfc`

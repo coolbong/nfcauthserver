@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>카드 관리 | NFC Authentication</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23131209'/%3E%3Crect x='9' y='6' width='14' height='20' rx='2' fill='none' stroke='%23F7F5EF' stroke-width='2'/%3E%3C/svg%3E">
+  <style>
+    @font-face { font-family: Geist; src: url(assets/fonts/Geist-Variable.woff2) format('woff2'); font-weight: 100 900; font-display: swap; }
+    :root {
+      --bg: #131209; --surface: #181818; --surface-2: #1F1F1F; --edge: #313131;
+      --text: #F7F5EF; --muted: #A8A69E; --line: rgba(247, 245, 239, 0.12);
+      --ok: #4CC38A; --warn: #F2A93B; --bad: #F4686E; --accent: #B3131B;
+      --curve: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Geist, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100dvh;
+      font-size: 0.875rem; line-height: 1.25rem; -webkit-font-smoothing: antialiased; word-break: keep-all;
+    }
+    [hidden] { display: none !important; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; line-height: 1rem; overflow-wrap: anywhere; }
+    .muted { color: var(--muted); }
+
+    .btn { min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--surface-2); cursor: pointer; font-weight: 600; transition: opacity 300ms var(--curve), transform 300ms var(--curve); }
+    .btn:hover { opacity: 0.86; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .btn.danger { border-color: var(--bad); color: var(--bad); }
+    .btn.quiet { background: transparent; }
+
+    .field { display: grid; gap: 4px; }
+    .field label { color: var(--muted); font-size: 0.75rem; line-height: 1rem; font-weight: 500; }
+    .input { width: 100%; min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--surface); }
+
+    .notice { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--edge); }
+    .notice.error { border-color: var(--bad); color: var(--bad); }
+    .notice.ok { border-color: var(--ok); color: var(--ok); }
+
+    /* 로그인 */
+    .login { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+    .login form { width: min(100%, 360px); display: grid; gap: 16px; padding: 24px; border: 1px solid var(--edge); border-radius: 16px; background: var(--surface); }
+    .login h1 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+
+    /* 앱 */
+    .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: rgba(19, 18, 9, 0.9); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+    .top nav { display: flex; gap: 4px; }
+    .top nav button[aria-current="page"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    main.app { max-width: 1080px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar .input { flex: 1; min-width: 160px; }
+    .toolbar select.input { flex: none; width: auto; }
+
+    .list { display: grid; gap: 8px; }
+    .row { width: 100%; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 12px; background: var(--surface); cursor: pointer; transition: border-color 300ms var(--curve); }
+    .row:hover { border-color: var(--muted); }
+    .row .name { font-weight: 600; overflow-wrap: anywhere; }
+    .row .meta { grid-column: 1 / -1; display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 0.75rem; line-height: 1rem; }
+    .pill { justify-self: end; align-self: start; padding: 2px 8px; border-radius: 9999px; border: 1px solid currentColor; font-size: 0.75rem; line-height: 1rem; font-weight: 600; }
+    .pill.ACTIVE { color: var(--ok); }
+    .pill.SUSPENDED { color: var(--warn); }
+    .pill.REVOKED { color: var(--bad); }
+    .skeleton { height: 72px; border-radius: 12px; background: var(--surface-2); animation: pulse 1400ms var(--curve) infinite alternate; }
+    @keyframes pulse { from { opacity: 0.45; } to { opacity: 1; } }
+    .empty { padding: 32px 16px; text-align: center; border: 1px dashed var(--edge); border-radius: 12px; color: var(--muted); }
+
+    /* 상세 */
+    .detail { display: grid; gap: 16px; }
+    .panel { display: grid; gap: 16px; padding: 16px; border: 1px solid var(--edge); border-radius: 16px; background: var(--surface); }
+    .panel h2 { font-size: 1rem; line-height: 1.5rem; font-weight: 600; }
+    .panel h3 { font-size: 0.875rem; font-weight: 600; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .stat { padding: 8px 12px; border-radius: 8px; background: var(--surface-2); }
+    .stat b { display: block; font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; }
+    .kv { display: grid; gap: 8px; }
+    .kv-row { display: grid; grid-template-columns: minmax(96px, 160px) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+    .kv-row .key { overflow-wrap: anywhere; color: var(--muted); }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .danger-zone { border-color: rgba(244, 104, 110, 0.4); }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { text-align: left; padding: 8px; border-top: 1px solid var(--line); vertical-align: top; }
+    .table th { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+    .scroll { overflow-x: auto; }
+    .table td.mono { white-space: nowrap; }
+    .ok-text { color: var(--ok); } .bad-text { color: var(--bad); } .warn-text { color: var(--warn); }
+
+    dialog { margin: auto; width: min(calc(100% - 32px), 420px); padding: 24px; border: 1px solid var(--edge); border-radius: 16px; background: var(--surface); color: var(--text); }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+    dialog form { display: grid; gap: 16px; }
+    dialog h2 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; }
+
+    @media (max-width: 640px) {
+      .kv-row { grid-template-columns: minmax(0, 1fr) auto; }
+      .kv-row .key { grid-column: 1 / -1; }
+      .who span { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+  </style>
+</head>
+<body>
+  <section class="login" id="loginView" hidden>
+    <form id="loginForm" novalidate>
+      <div>
+        <h1>카드 관리</h1>
+        <p class="muted">관리자 계정으로 로그인하세요.</p>
+      </div>
+      <div class="field"><label for="email">이메일</label><input class="input" id="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="password">비밀번호</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
+      <p class="notice error" id="loginError" role="alert" hidden></p>
+      <button class="btn primary" id="loginButton" type="submit">로그인</button>
+    </form>
+  </section>
+
+  <div id="appView" hidden>
+    <header class="top">
+      <nav aria-label="관리 메뉴">
+        <button class="btn quiet" type="button" data-view="tags" aria-current="page">카드</button>
+        <button class="btn quiet" type="button" data-view="audit">변경 기록</button>
+      </nav>
+      <div class="who">
+        <span class="muted" id="whoEmail"></span>
+        <button class="btn quiet" type="button" id="passwordButton">비밀번호 변경</button>
+        <button class="btn quiet" type="button" id="logoutButton">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="app">
+      <p class="notice" id="flash" role="status" hidden></p>
+
+      <section id="tagsView" aria-label="카드 목록">
+        <div class="toolbar">
+          <input class="input" id="search" type="search" placeholder="카드명이나 UID로 검색" aria-label="검색">
+          <select class="input" id="statusFilter" aria-label="상태 필터">
+            <option value="">모든 상태</option>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="SUSPENDED">SUSPENDED</option>
+            <option value="REVOKED">REVOKED</option>
+          </select>
+        </div>
+        <div class="list" id="tagList" style="margin-top: 12px"></div>
+      </section>
+
+      <section id="detailView" class="detail" hidden aria-label="카드 상세"></section>
+
+      <section id="auditView" hidden aria-label="변경 기록">
+        <div class="panel">
+          <h2>변경 기록</h2>
+          <div class="scroll" id="auditBody"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="confirmDialog">
+    <form method="dialog" id="confirmForm">
+      <h2 id="confirmTitle"></h2>
+      <p id="confirmText"></p>
+      <div class="field">
+        <label for="confirmInput" id="confirmLabel"></label>
+        <input class="input mono" id="confirmInput" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button class="btn" value="cancel" type="submit" formnovalidate>취소</button>
+        <button class="btn danger" id="confirmOk" value="ok" type="submit" disabled>실행</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="passwordDialog">
+    <form method="dialog" id="passwordForm" novalidate>
+      <h2>비밀번호 변경</h2>
+      <div class="field"><label for="newPassword">새 비밀번호 (16자 이상)</label><input class="input" id="newPassword" type="password" autocomplete="new-password" minlength="16"></div>
+      <p class="notice error" id="passwordError" role="alert" hidden></p>
+      <div class="actions">
+        <button class="btn" value="cancel" type="submit" formnovalidate>취소</button>
+        <button class="btn primary" id="passwordSave" value="save" type="button">변경</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="assets/supabase-js-2.39.8.min.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>

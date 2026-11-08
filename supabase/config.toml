@@ -17,3 +17,7 @@ verify_jwt = false
 [functions.auth]
 # 단일 파라미터 BER-TLV (DF61, DF62, DF63) + RFC 4226 HOTP 인증 엔드포인트
 verify_jwt = false
+
+[functions.admin]
+# 카드 관리자 API. 관리자 JWT가 필요하다.
+verify_jwt = true

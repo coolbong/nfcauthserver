@@ -405,7 +405,7 @@ def build_3page_docx():
 
     rd_c = p_demo.add_run(
         "• 공식 정품 인증 데모: https://nfcauth.vercel.app\n"
-        "• 테스트용 카운터 리셋 허브: https://nfcauth.vercel.app/reset\n"
+        "• 카드 관리자 페이지 (로그인 필요): https://nfcauth.vercel.app/admin\n"
         "• 맞춤형 브랜딩, CRM/팬클럽 연동, 대량 발급 문의는 기술지원팀으로 문의해 주시기 바랍니다."
     )
     rd_c.font.name = '맑은 고딕'
