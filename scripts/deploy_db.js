@@ -10,10 +10,10 @@ if (!accessToken) {
   process.exit(1);
 }
 
-const sqlPath = path.resolve('supabase/migrations/20261014000000_create_nfc_auth_schema.sql');
+const sqlPath = path.resolve(process.argv[2] || 'supabase/migrations/20261014000000_create_nfc_auth_schema.sql');
 const sql = fs.readFileSync(sqlPath, 'utf-8');
 
-console.log('🚀 Supabase DB 스키마 배포 시작...');
+console.log(`🚀 Supabase DB SQL 배포 시작: ${path.relative(process.cwd(), sqlPath)}`);
 
 async function run() {
   const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
@@ -31,7 +31,8 @@ async function run() {
     process.exit(1);
   }
 
-  console.log('✅ DB 스키마 및 저장 프로시저 배포 성공!');
+  console.log('✅ SQL 배포 성공!');
+  if (responseText && responseText !== '[]') console.log(responseText);
 }
 
 run().catch(err => {

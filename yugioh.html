@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0F0F12">
+  <title>정품 확인 | Yu-Gi-Oh! 카드 인증</title>
+  <meta name="description" content="유희왕 카드의 NFC 칩 서명을 대조해 정품 여부를 확인하는 데모입니다.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23B8860B'/%3E%3Cpath d='M16 6l10 18H6z' fill='%23131209'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23FFD700'/%3E%3C/svg%3E">
+  <link rel="preload" href="assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face {
+      font-family: Geist;
+      src: url(assets/fonts/Geist-Variable.woff2) format('woff2');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    :root {
+      --bg: #0C0D10;
+      --surface: #14161C;
+      --card-bg: #1B1E26;
+      --gold: #D4AF37;
+      --gold-light: #F7E7A9;
+      --gold-dark: #8C6D1F;
+      --paper: #F6F7FA;
+      --ink: #111317;
+      --soft: #7A8194;
+      --muted: #A3AABF;
+      --line: rgba(212, 175, 55, 0.22);
+      --accent: var(--gold);
+      --curve: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body[data-kind="genuine"] { --accent: #D4AF37; }
+    body[data-kind="recheck"] { --accent: #E68A00; }
+    body[data-kind="rejected"] { --accent: #E53E3E; }
+    body[data-kind="unavailable"] { --accent: #6C7280; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: Geist, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1A1C24 0%, var(--bg) 80%);
+      color: var(--paper);
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; justify-content: center; padding: 16px;
+      -webkit-font-smoothing: antialiased;
+      word-break: keep-all; overflow-wrap: anywhere;
+    }
+    [hidden] { display: none !important; }
+
+    main {
+      width: 100%; max-width: 440px;
+      display: flex; flex-direction: column; gap: 12px;
+      padding-bottom: 24px;
+    }
+
+    .brand-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 4px;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em;
+      color: var(--gold-light); text-transform: uppercase;
+    }
+    .brand-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(212, 175, 55, 0.12); border: 1px solid var(--gold-dark);
+      padding: 4px 10px; border-radius: 999px;
+    }
+    .brand-badge::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--gold); box-shadow: 0 0 8px var(--gold);
+    }
+
+    /* PSA / BGS 스타일 수집품 슬래브(Slab) 케이스 */
+    .slab-case {
+      position: relative;
+      background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(20,22,28,0.95) 40%, rgba(12,13,16,0.98) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.35);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.15);
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+      overflow: hidden;
+    }
+    .slab-case::after {
+      content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 50%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      transform: skewX(-25deg); pointer-events: none;
+    }
+
+    /* 그레이딩 헤더 라벨 */
+    .slab-label {
+      background: #FFFFFF; color: #111;
+      border-radius: 10px; padding: 12px 14px;
+      border-top: 5px solid var(--accent);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .slab-label-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-bottom: 1px solid #E5E7EB; padding-bottom: 6px;
+    }
+    .slab-issuer { font-size: 0.72rem; font-weight: 800; color: #4B5563; letter-spacing: 0.08em; }
+    .slab-grade {
+      font-size: 1.15rem; font-weight: 900; color: var(--accent);
+      letter-spacing: 0.03em;
+    }
+    .slab-title { font-size: 1.1rem; font-weight: 800; color: #111827; margin-top: 2px; }
+    .slab-subtitle { font-size: 0.78rem; font-weight: 600; color: #6B7280; }
+
+    /* 카드 뷰어 & 홀로그램 효과 */
+    .card-display {
+      position: relative;
+      width: 100%; border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 340px;
+    }
+    .card-image {
+      width: 100%; height: auto; max-height: 480px;
+      object-fit: contain; display: block;
+      transition: transform 0.4s var(--curve);
+    }
+    /* 홀로그램 오버레이 효과 */
+    .holo-sheen {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255, 0, 150, 0.15) 35%,
+        rgba(0, 255, 255, 0.25) 50%,
+        rgba(255, 230, 0, 0.2) 65%,
+        transparent 80%
+      );
+      background-size: 200% 200%;
+      mix-blend-mode: color-dodge;
+      opacity: 0.75;
+      animation: holoShift 6s ease-in-out infinite alternate;
+    }
+    @keyframes holoShift {
+      0% { background-position: 0% 0%; opacity: 0.4; }
+      50% { background-position: 100% 100%; opacity: 0.85; }
+      100% { background-position: 0% 100%; opacity: 0.5; }
+    }
+
+    /* 인증 상태 뱃지 (상태별) */
+    .status-banner {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 12px;
+      background: rgba(20, 22, 28, 0.9);
+      border: 1px solid var(--accent);
+    }
+    .status-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: grid; place-items: center; flex: none;
+      background: var(--accent); color: #0C0D10;
+    }
+    .status-icon svg { width: 16px; height: 16px; }
+    .status-text h2 { font-size: 0.95rem; font-weight: 700; color: #FFF; }
+    .status-text p { font-size: 0.75rem; color: var(--soft); margin-top: 1px; }
+
+    /* 상세 스펙 테이블 */
+    .spec-table {
+      background: var(--surface); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 4px 14px;
+    }
+    .spec-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; font-size: 0.82rem;
+    }
+    .spec-row + .spec-row { border-top: 1px solid rgba(255,255,255,0.06); }
+    .spec-row dt { color: var(--soft); font-weight: 500; }
+    .spec-row dd { color: var(--paper); font-weight: 600; text-align: right; }
+    .spec-row .gold { color: var(--gold-light); }
+
+    /* 바코드 인증 번호 */
+    .barcode-box {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 12px 14px; background: #FFFFFF; color: #111;
+      border-radius: 14px;
+    }
+    .barcode-svg { width: 100%; height: 38px; }
+    .barcode-num { font-family: ui-monospace, Menlo, monospace; font-size: 0.75rem; font-weight: 700; }
+    @media (prefers-reduced-motion: reduce) {
+      .holo-sheen { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" aria-busy="true">
+    <div class="brand-bar">
+      <span>Yu-Gi-Oh! 카드 인증</span>
+      <div class="brand-badge" id="brandBadge">확인 중</div>
+    </div>
+
+    <div class="status-banner" id="statusBanner">
+      <div class="status-icon" id="statusIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" id="statusSvg" aria-hidden="true"></svg>
+      </div>
+      <div class="status-text" aria-live="polite">
+        <h2 id="statusTitle">인증 확인 중</h2>
+        <p id="statusDesc">카드 칩의 서명을 확인하고 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="slab-case" id="slab" hidden>
+      <div class="slab-label">
+        <div class="slab-label-top">
+          <span class="slab-issuer" id="slabIssuer"></span>
+          <span class="slab-grade" id="slabGrade"></span>
+        </div>
+        <div class="slab-title" id="slabCardName"></div>
+        <div class="slab-subtitle" id="slabCardSub"></div>
+      </div>
+      <div class="card-display" id="cardDisplay" hidden>
+        <img id="cardImage" class="card-image" alt="">
+        <div class="holo-sheen" id="holoSheen" hidden></div>
+      </div>
+    </div>
+
+    <dl class="spec-table" id="specTable" hidden></dl>
+
+    <div class="barcode-box" id="barcodeBox" hidden>
+      <svg class="barcode-svg" id="barcodeSvg" role="img" aria-label="인증 번호 바코드"></svg>
+      <span class="barcode-num" id="certNumberText"></span>
+    </div>
+  </main>
+
+  <script src="assets/jsbarcode.code128.min.js"></script>
+  <script>
+    const IS_STANDALONE = location.hostname.includes('github.io') || location.protocol === 'file:';
+    const API_BASE = IS_STANDALONE ? 'https://jklfqmbaubvnbrbuhzak.supabase.co/functions/v1' : '';
+
+    const $ = (id) => document.getElementById(id);
+
+    function apiUrl() {
+      const search = location.search;
+      const params = new URLSearchParams(search);
+      const raw = search.replace(/^\?/, '').trim();
+
+      // HOTP TLV 체크
+      let tlv = /^DF61/i.test(raw) ? raw : (params.get('data') || params.get('tlv') || '').trim();
+      if (!tlv) {
+        for (const [key, value] of params.entries()) {
+          if (key.toUpperCase().startsWith('DF61')) { tlv = key; break; }
+          if (value.toUpperCase().startsWith('DF61')) { tlv = value; break; }
+        }
+      }
+      if (tlv) return `${API_BASE}/auth?${tlv}`;
+
+      const uid = params.get('uid');
+      const cnt = params.get('cnt') || params.get('ctr');
+      const mac = params.get('mac') || params.get('c');
+      if (!uid || !cnt || !mac) return null;
+
+      const kid = (params.get('kid') || params.get('kno') || '1').trim();
+      const q = new URLSearchParams({
+        uid: uid.trim().toUpperCase(), cnt: cnt.trim().toUpperCase(), mac: mac.trim().toUpperCase(), kid,
+      });
+      return `${API_BASE}/nfc?${q}`;
+    }
+
+    const KIND_BY_RESULT = {
+      COUNTER_REPLAY: 'recheck',
+      INVALID_MAC: 'rejected',
+      INVALID_OTP: 'rejected',
+      TAG_NOT_FOUND: 'rejected',
+      TAG_INACTIVE: 'rejected',
+    };
+
+    const VIEWS = {
+      genuine: {
+        badge: '정품', grade: 'AUTHENTIC', title: '정품으로 확인되었습니다',
+        desc: '카드 칩의 일회용 서명이 등록 정보와 일치합니다.',
+        icon: '<path d="M5 13l4 4L19 7"/>',
+      },
+      recheck: {
+        badge: '재확인', grade: 'RECHECK', title: '카드를 다시 탭해 주세요',
+        desc: '이미 사용된 링크입니다. 실물 카드를 스마트폰에 다시 탭하면 확인할 수 있습니다.',
+        icon: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+      },
+      rejected: {
+        badge: '미확인', grade: 'NOT VERIFIED', title: '정품으로 확인되지 않았습니다',
+        desc: '등록된 정품 정보로 확인되지 않습니다. 구매처에 문의해 주세요.',
+        icon: '<path d="M18 6L6 18M6 6l12 12"/>',
+      },
+      unavailable: {
+        badge: '확인 불가', grade: 'NO RESULT', title: '확인할 수 없습니다',
+        desc: '연결 상태를 확인한 뒤 카드를 다시 탭해 주세요.',
+        icon: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+      },
+    };
+
+    async function loadVerdict() {
+      const url = apiUrl();
+      if (!url) return { kind: 'unavailable' };
+      try {
+        const data = await (await fetch(url)).json();
+        const success = data.success === true && data.resultCode === 'SUCCESS';
+        const kind = success ? 'genuine' : (KIND_BY_RESULT[data.resultCode] ?? 'unavailable');
+        return { kind, data };
+      } catch (err) {
+        console.error('인증 서버 통신 실패:', err);
+        return { kind: 'unavailable' };
+      }
+    }
+
+    // 카드 이미지는 이 사이트의 assets/king/ 아래 파일만 허용한다.
+    function safeImage(path) {
+      return typeof path === 'string' && /^assets\/king\/[0-9]+\.jpg$/.test(path) ? path : null;
+    }
+
+    function renderSpecs(rows) {
+      const table = $('specTable');
+      rows.filter(([, value]) => value !== undefined && value !== null && value !== '').forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'spec-row';
+        const dt = document.createElement('dt');
+        dt.textContent = label;
+        const dd = document.createElement('dd');
+        dd.textContent = String(value);
+        row.append(dt, dd);
+        table.append(row);
+      });
+      table.hidden = false;
+    }
+
+    function renderPage({ kind, data }) {
+      const view = VIEWS[kind];
+      document.body.dataset.kind = kind;
+      $('app').removeAttribute('aria-busy');
+      document.title = `${view.title} | Yu-Gi-Oh! 카드 인증`;
+
+      $('brandBadge').textContent = view.badge;
+      $('statusTitle').textContent = view.title;
+      $('statusDesc').textContent = view.desc;
+      $('statusSvg').innerHTML = view.icon;
+
+      const now = new Date().toLocaleString('ko-KR', { dateStyle: 'long', timeStyle: 'short' });
+      const info = (data && data.productInfo) || {};
+      const showCard = (kind === 'genuine' || kind === 'recheck') && info.cardName;
+
+      if (!showCard) {
+        renderSpecs([['확인 시각', now]]);
+        return;
+      }
+
+      $('slabIssuer').textContent = info.issuer || '';
+      $('slabGrade').textContent = view.grade;
+      $('slabCardName').textContent = info.cardName;
+      $('slabCardSub').textContent = info.cardNameEn !== info.cardName ? info.cardNameEn || '' : `#${info.passcode}`;
+      $('slab').hidden = false;
+
+      const image = safeImage(info.imageUrl);
+      if (image) {
+        $('cardImage').src = image;
+        $('cardImage').alt = `${info.cardName} 카드 이미지`;
+        $('cardDisplay').hidden = false;
+        $('holoSheen').hidden = kind !== 'genuine';
+      }
+
+      const stats = info.atk !== undefined ? `ATK ${info.atk} / DEF ${info.def}` : '';
+      renderSpecs(kind === 'genuine' ? [
+        ['카드 패스코드', info.passcode && `#${info.passcode}`],
+        ['속성 / 종족', [info.attribute, info.race].filter(Boolean).join(' / ')],
+        ['종류', info.cardType],
+        ['레벨', info.level],
+        ['공격력 / 수비력', stats],
+        ['총 인증 횟수', data.totalScans && `${data.totalScans}회`],
+        ['확인 시각', now],
+      ] : [
+        ['카드 패스코드', info.passcode && `#${info.passcode}`],
+        ['확인 시각', now],
+      ]);
+
+      const uid = String(data.uid || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+      const certId = info.serialNumber || (uid && `YGO-${uid.slice(-8)}`);
+      if (kind !== 'genuine' || !certId) return;
+      $('certNumberText').textContent = certId;
+      $('barcodeBox').hidden = false;
+      if (typeof JsBarcode !== 'function') return $('barcodeSvg').remove();
+      JsBarcode($('barcodeSvg'), certId, {
+        format: 'CODE128', displayValue: false, height: 38, margin: 0, width: 1.2,
+        background: 'transparent', lineColor: '#111'
+      });
+    }
+
+    loadVerdict().then(renderPage);
+  </script>
+</body>
+</html>
